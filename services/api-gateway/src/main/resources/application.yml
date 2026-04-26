@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    discovery:
+      locator:
+        enabled: true
+        lower-case-service-id: true
+    gateway:
+      routes:
+        # Eureka UI + API
+        - id: discovery-server
+          uri: http://localhost:8761
+          predicates:
+            - Path=/eureka/**
+          filters:
+            - SetPath=/
+        - id: eureka-sever-static
+          uri: http://localhost:8761
+          predicates:
+            - Path=/eureka/**
+
+management:
+  endpoint:
+    gateway:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    instance:
+      prefer-ip-address: true
