@@ -23,10 +23,18 @@
 hs_err_pid*
 replay_pid*
 
+# Runtime logs
+logs/
+*.log
+
+# Build outputs
+target/
+out/
+
+# IDE files
 .idea/
 *.iml
 
-target/
-out/
-.vscode/
+# OS files
 .DS_Store
+Thumbs.db
