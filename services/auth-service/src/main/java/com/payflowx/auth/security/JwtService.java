@@ -2,40 +2,40 @@ package com.payflowx.auth.security;
 
 import com.payflowx.auth.config.JwtProperties;
 import com.payflowx.auth.entity.User;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
+import com.payflowx.auth.security.provider.TokenProvider;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Date;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class JwtService {
 
-    private final JwtProperties jwtProperties;
+    private final TokenProvider activeProvider;
 
-    public String generateToken(User user) {
+    public JwtService(
+            JwtProperties properties,
+            java.util.List<TokenProvider> providers
+    ) {
+        Map<String, TokenProvider> providerMap =
+                providers.stream()
+                        .collect(Collectors.toMap(
+                                p -> p.algorithm().toUpperCase(),
+                                Function.identity()
+                        ));
 
-        Instant now = Instant.now();
-        Instant expiry = now.plusMillis(jwtProperties.expiration());
+        this.activeProvider =
+                providerMap.get(
+                        properties.algorithm().toUpperCase()
+                );
 
-        return Jwts.builder()
-                .subject(user.getEmail())
-                .claim("role", user.getRole().name())
-                .claim("userId", user.getId())
-                .issuedAt(Date.from(now))
-                .expiration(Date.from(expiry))
-                .signWith(getSigningKey())
-                .compact();
+        if (this.activeProvider == null) {
+            throw new IllegalStateException("Unsupported JWT algorithm");
+        }
     }
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(
-                jwtProperties.secret().getBytes(StandardCharsets.UTF_8)
-        );
+    public String generateToken(User user) {
+        return activeProvider.generateToken(user);
     }
 }

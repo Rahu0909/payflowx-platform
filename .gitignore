@@ -38,3 +38,7 @@ out/
 # OS files
 .DS_Store
 Thumbs.db
+
+# RSA Keys
+keys/
+*.pem

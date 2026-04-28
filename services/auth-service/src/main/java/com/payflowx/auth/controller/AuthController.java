@@ -28,4 +28,16 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
+
+    @PostMapping(AppConstants.REFRESH)
+    public ResponseEntity<ApiResponse<TokenResponse>> refresh(
+            @Valid @RequestBody RefreshRequest request) {
+        return ResponseEntity.ok(authService.refresh(request));
+    }
+
+    @PostMapping(AppConstants.LOGOUT)
+    public ResponseEntity<ApiResponse<String>> logout(
+            @Valid @RequestBody LogoutRequest request) {
+        return ResponseEntity.ok(authService.logout(request));
+    }
 }

@@ -20,4 +20,10 @@ public final class AppConstants {
     public static final String INVALID_CREDENTIALS = "Invalid email or password";
 
     public static final String BEARER = "Bearer";
+    public static final String REFRESH = "/refresh";
+    public static final String LOGOUT = "/logout";
+
+    public static final String LOGOUT_SUCCESS = "Logout successful";
+    public static final String TOKEN_REFRESHED = "Token refreshed";
+    public static final String INVALID_REFRESH_TOKEN = "Invalid refresh token";
 }

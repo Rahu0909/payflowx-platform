@@ -12,7 +12,9 @@ spring:
         lower-case-service-id: true
     gateway:
       routes:
-        # Eureka UI + API
+        # ===============================
+        # Eureka Dashboard UI
+        # ===============================
         - id: discovery-server
           uri: http://localhost:8761
           predicates:
@@ -23,6 +25,14 @@ spring:
           uri: http://localhost:8761
           predicates:
             - Path=/eureka/**
+        # ===============================
+        # Auth Service Routes
+        # ===============================
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+
 
 management:
   endpoint:
@@ -39,3 +49,10 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
     instance:
       prefer-ip-address: true
+
+
+app:
+  jwt:
+    algorithm: RS256
+    secret: 9WHfWmiB*k;&,s=M_b3rhs1T+izYVsAtX|@-!kW;iVU
+    public-key: classpath:keys/public.pem
