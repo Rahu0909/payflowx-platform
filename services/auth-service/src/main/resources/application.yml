@@ -5,30 +5,27 @@ spring:
   application:
     name: auth-service
 
-  #Redis
+  profiles:
+    active: local
+
   data:
     redis:
-      host: localhost
-      port: 6379
-      timeout: 2000ms
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/payflowx_auth
-    username: postgres
-    password: Agar@0909
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
     hostname: localhost
@@ -38,12 +35,10 @@ management:
       exposure:
         include: health,info
 
-
-
 app:
   jwt:
-    algorithm: RS256
-    secret: 9WHfWmiB*k;&,s=M_b3rhs1T+izYVsAtX|@-!kW;iVU
-    private-key: classpath:keys/private.pem
-    public-key: classpath:keys/public.pem
-    expiration: 3600000
+    algorithm: ${JWT_ALGORITHM:RS256}
+    secret: ${JWT_SECRET:dummy-dev-secret}
+    private-key: ${JWT_PRIVATE_KEY:classpath:keys/private.pem}
+    public-key: ${JWT_PUBLIC_KEY:classpath:keys/public.pem}
+    expiration: ${JWT_EXPIRATION:3600000}

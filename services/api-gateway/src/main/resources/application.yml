@@ -5,11 +5,13 @@ spring:
   application:
     name: api-gateway
 
-#Redis
+  profiles:
+    active: local
+
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   cloud:
     discovery:
@@ -52,7 +54,7 @@ management:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
     instance:
       prefer-ip-address: true
   instance:
@@ -61,6 +63,6 @@ eureka:
 
 app:
   jwt:
-    algorithm: RS256
-    secret: 9WHfWmiB*k;&,s=M_b3rhs1T+izYVsAtX|@-!kW;iVU
-    public-key: classpath:keys/public.pem
+    algorithm: ${JWT_ALGORITHM:RS256}
+    secret: ${JWT_SECRET:dummy-dev-secret}
+    public-key: ${JWT_PUBLIC_KEY:classpath:keys/public.pem}
