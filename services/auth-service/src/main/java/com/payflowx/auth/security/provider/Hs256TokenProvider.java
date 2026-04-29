@@ -2,6 +2,7 @@ package com.payflowx.auth.security.provider;
 
 import com.payflowx.auth.config.JwtProperties;
 import com.payflowx.auth.entity.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
@@ -44,4 +45,14 @@ public class Hs256TokenProvider implements TokenProvider {
                 properties.secret().getBytes(StandardCharsets.UTF_8)
         );
     }
+
+    @Override
+    public Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
 }

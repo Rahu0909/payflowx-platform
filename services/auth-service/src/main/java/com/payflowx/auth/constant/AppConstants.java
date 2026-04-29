@@ -20,6 +20,7 @@ public final class AppConstants {
     public static final String INVALID_CREDENTIALS = "Invalid email or password";
 
     public static final String BEARER = "Bearer";
+    public static final String BEARER_PREFIX = "Bearer ";
     public static final String REFRESH = "/refresh";
     public static final String LOGOUT = "/logout";
 

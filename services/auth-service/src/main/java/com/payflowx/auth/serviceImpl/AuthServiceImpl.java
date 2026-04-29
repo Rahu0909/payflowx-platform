@@ -11,6 +11,7 @@ import com.payflowx.auth.repository.RefreshTokenRepository;
 import com.payflowx.auth.repository.UserRepository;
 import com.payflowx.auth.security.JwtService;
 import com.payflowx.auth.service.AuthService;
+import com.payflowx.auth.service.TokenBlacklistService;
 import com.payflowx.auth.util.TokenGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,8 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
 
     private final TokenGenerator tokenGenerator;
+
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     public ApiResponse<UserResponse> register(UserRequest request) {
@@ -128,23 +131,6 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
-    @Override
-    public ApiResponse<String> logout(LogoutRequest request) {
-        var token = refreshTokenRepository
-                .findByToken(request.refreshToken())
-                .orElseThrow(() ->
-                        new BusinessException(AppConstants.INVALID_REFRESH_TOKEN));
-        token.setRevoked(true);
-        refreshTokenRepository.save(token);
-        log.info("Logout successful for userId={}", token.getUser().getId());
-        return new ApiResponse<>(
-                AppConstants.SUCCESS,
-                AppConstants.LOGOUT_SUCCESS,
-                "Logged out",
-                LocalDateTime.now()
-        );
-    }
-
     private String createOrUpdateRefreshToken(User user) {
         var tokenValue = tokenGenerator.generateRefreshToken();
         var refreshToken = refreshTokenRepository
@@ -168,5 +154,54 @@ public class AuthServiceImpl implements AuthService {
         token.setRevoked(false);
         refreshTokenRepository.save(token);
         return newToken;
+    }
+
+    @Override
+    public ApiResponse<String> logout(String authHeader,
+                                      LogoutRequest request) {
+
+        // =========================
+        // Revoke Refresh Token
+        // =========================
+        var refreshToken = refreshTokenRepository
+                .findByToken(request.refreshToken())
+                .orElseThrow(() ->
+                        new BusinessException(
+                                AppConstants.INVALID_REFRESH_TOKEN
+                        ));
+
+        refreshToken.setRevoked(true);
+        refreshTokenRepository.save(refreshToken);
+
+        // =========================
+        // Blacklist Access Token
+        // =========================
+        String rawToken =
+                authHeader.replace(
+                        AppConstants.BEARER_PREFIX,
+                        ""
+                );
+
+        String jti = jwtService.extractJti(rawToken);
+
+        long ttl =
+                jwtService.extractExpiration(rawToken)
+                        .toInstant()
+                        .toEpochMilli()
+                        - System.currentTimeMillis();
+
+        if (ttl > 0) {
+            tokenBlacklistService.blacklist(jti, ttl);
+        }
+
+        log.info("Logout completed for userId={}",
+                refreshToken.getUser().getId());
+
+        return new ApiResponse<>(
+                AppConstants.SUCCESS,
+                AppConstants.LOGOUT_SUCCESS,
+                "Logged out successfully",
+                LocalDateTime.now()
+        );
     }
 }

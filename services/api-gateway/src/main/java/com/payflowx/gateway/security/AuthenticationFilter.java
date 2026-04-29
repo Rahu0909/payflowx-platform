@@ -19,9 +19,11 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     private final RouteValidator routeValidator;
     private final JwtUtil jwtUtil;
     private final RoleBasedAccessValidator accessValidator;
+    private final GatewayBlacklistService blacklistService;
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    public Mono<Void> filter(ServerWebExchange exchange,
+                             GatewayFilterChain chain) {
 
         var request = exchange.getRequest();
         var path = request.getURI().getPath();
@@ -30,37 +32,59 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        var authHeader = request.getHeaders().getFirst(AppConstants.AUTH_HEADER);
+        var authHeader =
+                request.getHeaders()
+                        .getFirst(AppConstants.AUTH_HEADER);
 
-        if (authHeader == null || !authHeader.startsWith(AppConstants.BEARER_PREFIX)) {
-            return unauthorized(exchange);
+        if (authHeader == null ||
+                !authHeader.startsWith(AppConstants.BEARER_PREFIX)) {
+            return unauthorized(exchange, "Missing or invalid auth header");
         }
 
-        var token = authHeader.substring(7);
+        var token =
+                authHeader.substring(
+                        AppConstants.BEARER_PREFIX.length()
+                );
 
         if (!jwtUtil.isValid(token)) {
-            return unauthorized(exchange);
+            return unauthorized(exchange, "Invalid token");
         }
 
-        var role = jwtUtil.extractRole(token);
+        String jti = jwtUtil.extractJti(token);
+
+        if (blacklistService.isBlacklisted(jti)) {
+            log.warn("Blocked blacklisted token jti={}", jti);
+            return unauthorized(exchange, "Token revoked");
+        }
+
+        String role = jwtUtil.extractRole(token);
 
         if (!accessValidator.hasAccess(path, role)) {
-            log.warn("Access denied for role={} path={}", role, path);
+            log.warn("Access denied role={} path={}", role, path);
             return forbidden(exchange);
         }
 
-        log.info("Access granted for role={} path={}", role, path);
+        log.info("Access granted role={} path={}", role, path);
 
         return chain.filter(exchange);
     }
 
-    private Mono<Void> unauthorized(ServerWebExchange exchange) {
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+    private Mono<Void> unauthorized(ServerWebExchange exchange,
+                                    String message) {
+
+        log.warn(message);
+
+        exchange.getResponse()
+                .setStatusCode(HttpStatus.UNAUTHORIZED);
+
         return exchange.getResponse().setComplete();
     }
 
     private Mono<Void> forbidden(ServerWebExchange exchange) {
-        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+
+        exchange.getResponse()
+                .setStatusCode(HttpStatus.FORBIDDEN);
+
         return exchange.getResponse().setComplete();
     }
 

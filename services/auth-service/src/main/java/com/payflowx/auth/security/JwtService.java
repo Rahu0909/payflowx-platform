@@ -3,8 +3,11 @@ package com.payflowx.auth.security;
 import com.payflowx.auth.config.JwtProperties;
 import com.payflowx.auth.entity.User;
 import com.payflowx.auth.security.provider.TokenProvider;
+import io.jsonwebtoken.Claims;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -13,15 +16,19 @@ import java.util.stream.Collectors;
 public class JwtService {
 
     private final TokenProvider activeProvider;
+    private final JwtProperties jwtProperties;
 
     public JwtService(
             JwtProperties properties,
-            java.util.List<TokenProvider> providers
+            List<TokenProvider> providers
     ) {
+
+        this.jwtProperties = properties;
+
         Map<String, TokenProvider> providerMap =
                 providers.stream()
                         .collect(Collectors.toMap(
-                                p -> p.algorithm().toUpperCase(),
+                                provider -> provider.algorithm().toUpperCase(),
                                 Function.identity()
                         ));
 
@@ -31,11 +38,33 @@ public class JwtService {
                 );
 
         if (this.activeProvider == null) {
-            throw new IllegalStateException("Unsupported JWT algorithm");
+            throw new IllegalStateException(
+                    "Unsupported JWT algorithm: " + properties.algorithm()
+            );
         }
     }
 
     public String generateToken(User user) {
         return activeProvider.generateToken(user);
+    }
+
+    public Claims extractAllClaims(String token) {
+        return activeProvider.parseClaims(token);
+    }
+
+    public String extractJti(String token) {
+        return extractAllClaims(token).get("jti", String.class);
+    }
+
+    public Date extractExpiration(String token) {
+        return extractAllClaims(token).getExpiration();
+    }
+
+    public String extractUsername(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    public String currentAlgorithm() {
+        return jwtProperties.algorithm();
     }
 }
