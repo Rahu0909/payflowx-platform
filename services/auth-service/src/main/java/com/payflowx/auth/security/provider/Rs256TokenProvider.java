@@ -33,10 +33,11 @@ public class Rs256TokenProvider implements TokenProvider {
             String jti = UUID.randomUUID().toString();
 
             return Jwts.builder()
-                    .subject(user.getEmail())
+                    .subject(user.getId().toString())
+                    .claim("email", user.getEmail())
                     .claim("role", user.getRole().name())
-                    .claim("userId", user.getId())
                     .claim("jti", jti)
+
                     .issuedAt(Date.from(now))
                     .expiration(Date.from(expiry))
                     .signWith(

@@ -1,7 +1,9 @@
 package com.payflowx.auth.dto;
 
+import java.util.UUID;
+
 public record LoginResponse(
-        Long id,
+        UUID authUserId,
         String fullName,
         String email,
         String role,

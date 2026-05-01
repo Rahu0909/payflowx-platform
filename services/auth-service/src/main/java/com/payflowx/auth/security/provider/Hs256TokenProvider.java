@@ -26,14 +26,12 @@ public class Hs256TokenProvider implements TokenProvider {
 
     @Override
     public String generateToken(User user) {
-
         Instant now = Instant.now();
         Instant expiry = now.plusMillis(properties.expiration());
-
         return Jwts.builder()
-                .subject(user.getEmail())
+                .subject(user.getId().toString())
+                .claim("email", user.getEmail())
                 .claim("role", user.getRole().name())
-                .claim("userId", user.getId())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .signWith(getKey())

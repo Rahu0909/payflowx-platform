@@ -12,7 +12,6 @@ public class RouteValidator {
             "/auth/login",
             "/auth/register",
             "/auth/refresh",
-            "/auth/logout",
             "/eureka",
             "/actuator"
     );

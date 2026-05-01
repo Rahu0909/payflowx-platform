@@ -65,8 +65,20 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         log.info("Access granted role={} path={}", role, path);
+        String userId = jwtUtil.extractClaims(token).getSubject();
+        String email = jwtUtil.extractClaims(token).get("email", String.class);
 
-        return chain.filter(exchange);
+        /*MUTATE REQUEST WITH HEADERS*/
+        var mutatedRequest = exchange.getRequest().mutate()
+                .header("X-Auth-UserId", userId)
+                .header("X-Auth-Email", email)
+                .build();
+
+        var mutatedExchange = exchange.mutate()
+                .request(mutatedRequest)
+                .build();
+
+        return chain.filter(mutatedExchange);
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange,

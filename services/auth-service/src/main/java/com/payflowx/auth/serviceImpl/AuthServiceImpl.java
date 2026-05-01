@@ -1,5 +1,7 @@
 package com.payflowx.auth.serviceImpl;
 
+import com.payflowx.auth.client.UserServiceClient;
+import com.payflowx.auth.config.JwtProperties;
 import com.payflowx.auth.constant.AppConstants;
 import com.payflowx.auth.constant.AppMessages;
 import com.payflowx.auth.dto.*;
@@ -13,6 +15,7 @@ import com.payflowx.auth.security.JwtService;
 import com.payflowx.auth.service.AuthService;
 import com.payflowx.auth.service.TokenBlacklistService;
 import com.payflowx.auth.util.TokenGenerator;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,6 +40,10 @@ public class AuthServiceImpl implements AuthService {
 
     private final TokenBlacklistService tokenBlacklistService;
 
+    private final JwtProperties jwtProperties;
+
+    private final UserServiceClient userServiceClient;
+
     @Override
     public ApiResponse<UserResponse> register(UserRequest request) {
 
@@ -55,9 +62,24 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         var saved = userRepository.save(user);
+        /* CALL USER SERVICE*/
+        try {
+            userServiceClient.createUser(
+                    new InternalUserCreateRequest(
+                            saved.getId(),
+                            saved.getEmail()
+                    )
+            );
+            log.info("User profile created in user-service for userId={}", saved.getId());
 
+        } catch (Exception ex) {
+            log.error("User service sync failed for userId={}", saved.getId(), ex);
+            // Decide strategy:
+            // Option 1: fail registration
+            // Option 2: allow retry later
+        }
         var response = new UserResponse(
-                saved.getId(),
+                saved.getId(),   // now UUID
                 saved.getFullName(),
                 saved.getEmail(),
                 saved.getRole().name()
@@ -71,19 +93,18 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
+    @Transactional
     @Override
     public ApiResponse<LoginResponse> login(LoginRequest request) {
-
         var user = userRepository.findByEmail(request.email())
                 .orElseThrow(() ->
                         new BusinessException(AppConstants.INVALID_CREDENTIALS));
-
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new BusinessException(AppConstants.INVALID_CREDENTIALS);
         }
-
         var accessToken = jwtService.generateToken(user);
         var refreshToken = createOrUpdateRefreshToken(user);
+        var expiry = jwtProperties.expiration();
         var response = new LoginResponse(
                 user.getId(),
                 user.getFullName(),
@@ -92,7 +113,7 @@ public class AuthServiceImpl implements AuthService {
                 accessToken,
                 refreshToken,
                 AppConstants.BEARER,
-                3600000
+                expiry
         );
         log.info("Login success userId={}", user.getId());
         return new ApiResponse<>(
@@ -105,6 +126,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public ApiResponse<TokenResponse> refresh(RefreshRequest request) {
+
         var storedToken = refreshTokenRepository
                 .findByToken(request.refreshToken())
                 .orElseThrow(() ->
@@ -116,11 +138,12 @@ public class AuthServiceImpl implements AuthService {
         var user = storedToken.getUser();
         var newAccessToken = jwtService.generateToken(user);
         var newRefreshToken = rotateRefreshToken(storedToken);
+        var expiry = jwtProperties.expiration();
         var response = new TokenResponse(
                 newAccessToken,
                 newRefreshToken,
                 AppConstants.BEARER,
-                3600000
+                expiry
         );
         log.info("Token refreshed for userId={}", user.getId());
         return new ApiResponse<>(
@@ -176,6 +199,9 @@ public class AuthServiceImpl implements AuthService {
         // =========================
         // Blacklist Access Token
         // =========================
+        if (!authHeader.startsWith(AppConstants.BEARER_PREFIX)) {
+            throw new BusinessException("Invalid Authorization header");
+        }
         String rawToken =
                 authHeader.replace(
                         AppConstants.BEARER_PREFIX,

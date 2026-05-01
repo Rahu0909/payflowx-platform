@@ -52,6 +52,10 @@ public class JwtService {
         return activeProvider.parseClaims(token);
     }
 
+    public String extractUserId(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
     public String extractJti(String token) {
         return extractAllClaims(token).get("jti", String.class);
     }
@@ -60,8 +64,16 @@ public class JwtService {
         return extractAllClaims(token).getExpiration();
     }
 
-    public String extractUsername(String token) {
-        return extractAllClaims(token).getSubject();
+    public String extractRole(String token) {
+        return extractAllClaims(token).get("role", String.class);
+    }
+
+    public String extractEmail(String token) {
+        return extractAllClaims(token).get("email", String.class);
+    }
+
+    public boolean isTokenExpired(String token) {
+        return extractExpiration(token).before(new Date());
     }
 
     public String currentAlgorithm() {
