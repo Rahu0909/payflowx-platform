@@ -38,7 +38,7 @@ public class User extends BaseEntity {
     private AccountStatus accountStatus;
 
     @Column(name = "is_verified", nullable = false)
-    private boolean isVerified = false;
+    private boolean Verified = false;
 
     @Column(name = "onboarding_completed", nullable = false)
     private boolean onboardingCompleted = false;

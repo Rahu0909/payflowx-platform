@@ -35,6 +35,6 @@ public class UserAddress extends BaseEntity {
     @Column(name = "postal_code")
     private String postalCode;
 
-    @Column(name = "is_primary", nullable = false)
-    private boolean isPrimary = false;
+    @Column(name = "is_default")
+    private boolean defaultAddress;
 }

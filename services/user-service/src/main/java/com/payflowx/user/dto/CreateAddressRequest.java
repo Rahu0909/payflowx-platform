@@ -3,7 +3,7 @@ package com.payflowx.user.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record AddressRequest(
+public record CreateAddressRequest(
 
         @NotBlank(message = "Address line 1 is required")
         String addressLine1,
@@ -23,5 +23,5 @@ public record AddressRequest(
         @Size(min = 4, max = 10, message = "Invalid postal code")
         String postalCode,
 
-        boolean isPrimary
+        boolean defaultAddress
 ) {}

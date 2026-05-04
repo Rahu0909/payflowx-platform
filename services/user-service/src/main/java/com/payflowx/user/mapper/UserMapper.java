@@ -1,9 +1,11 @@
 package com.payflowx.user.mapper;
 
 import com.payflowx.user.dto.AddressResponse;
+import com.payflowx.user.dto.KycResponse;
 import com.payflowx.user.dto.UserResponse;
 import com.payflowx.user.entity.User;
 import com.payflowx.user.entity.UserAddress;
+import com.payflowx.user.entity.UserKyc;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -22,7 +24,12 @@ public interface UserMapper {
     @Mapping(target = "onboardingCompleted", source = "onboardingCompleted")
     UserResponse toResponse(User user);
 
+    @Mapping(target = "defaultAddress", source = "defaultAddress")
+    @Mapping(target = "addressLine2", source = "addressLine2")
     AddressResponse toAddressResponse(UserAddress address);
+
+    @Mapping(target = "kycStatus", expression = "java(kyc.getKycStatus().name())")
+    KycResponse toKycResponse(UserKyc kyc);
 
     List<AddressResponse> toAddressList(List<UserAddress> addresses);
 }
