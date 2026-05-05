@@ -1,41 +1,46 @@
 package com.payflowx.user.exception;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.payflowx.user.dto.ApiResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // Business Validation (your core errors)
+    @ExceptionHandler(BusinessValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<String> handleBusinessException(BusinessValidationException ex) {
+        return new ApiResponse<>(
+                "FAILURE",
+                ex.getErrorCode().name(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+    }
+    // Resource Not Found
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<?> handleNotFound(ResourceNotFoundException ex) {
-        return ResponseEntity.badRequest().body(
-                new ErrorResponse("ERROR", ex.getMessage(), LocalDateTime.now())
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleNotFound(ResourceNotFoundException ex) {
+        return new ApiResponse<>(
+                "FAILURE",
+                null,
+                ex.getMessage(),
+                java.time.LocalDateTime.now()
         );
     }
 
-    record ErrorResponse(String status, String message, LocalDateTime timestamp) {
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<?> handleValidation(MethodArgumentNotValidException ex) {
-
-        List<String> errors = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
-                .toList();
-
-        return ResponseEntity.badRequest().body(
-                Map.of(
-                        "status", "ERROR",
-                        "errors", errors
-                )
+    // Fallback (VERY IMPORTANT)
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ApiResponse<Void> handleGeneric(Exception ex) {
+        return new ApiResponse<>(
+                "ERROR",
+                null,
+                "Something went wrong",
+                java.time.LocalDateTime.now()
         );
     }
 }

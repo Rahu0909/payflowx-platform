@@ -1,5 +1,6 @@
 package com.payflowx.user.util;
 
+import com.payflowx.user.constant.ErrorCode;
 import com.payflowx.user.constant.ValidationMessages;
 import com.payflowx.user.exception.BusinessValidationException;
 
@@ -15,16 +16,16 @@ public final class ProfileValidationUtil {
         if (dob == null) return;
 
         if (dob.isAfter(LocalDate.now())) {
-            throw new BusinessValidationException(ValidationMessages.INVALID_DOB);
+            throw new BusinessValidationException(ErrorCode.INVALID_DOB);
         }
 
         if (dob.isBefore(LocalDate.of(1900, 1, 1))) {
-            throw new BusinessValidationException(ValidationMessages.INVALID_DOB);
+            throw new BusinessValidationException(ErrorCode.INVALID_DOB);
         }
 
         int age = Period.between(dob, LocalDate.now()).getYears();
         if (age < 18) {
-            throw new BusinessValidationException(ValidationMessages.UNDERAGE);
+            throw new BusinessValidationException(ErrorCode.UNDERAGE);
         }
     }
 
@@ -35,10 +36,10 @@ public final class ProfileValidationUtil {
             URI uri = URI.create(url);
             String scheme = uri.getScheme();
             if (scheme == null || !(scheme.equals("http") || scheme.equals("https"))) {
-                throw new BusinessValidationException(ValidationMessages.INVALID_AVATAR_URL);
+                throw new BusinessValidationException(ErrorCode.INVALID_AVATAR_URL);
             }
         } catch (Exception ex) {
-            throw new BusinessValidationException(ValidationMessages.INVALID_AVATAR_URL);
+            throw new BusinessValidationException(ErrorCode.INVALID_AVATAR_URL);
         }
     }
 }

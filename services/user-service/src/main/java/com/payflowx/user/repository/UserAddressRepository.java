@@ -16,4 +16,6 @@ public interface UserAddressRepository extends JpaRepository<UserAddress, UUID> 
     Optional<UserAddress> findByIdAndUserId(UUID id, UUID userId);
 
     Optional<UserAddress> findByUserIdAndDefaultAddressTrue(UUID userId);
+
+    boolean existsByUserIdAndDefaultAddressTrue(UUID userId);
 }

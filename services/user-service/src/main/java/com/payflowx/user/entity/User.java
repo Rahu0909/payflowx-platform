@@ -4,6 +4,7 @@ import com.payflowx.user.entity.enums.AccountStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -35,10 +36,10 @@ public class User extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status", nullable = false)
-    private AccountStatus accountStatus;
+    private AccountStatus accountStatus = AccountStatus.ACTIVE;
 
     @Column(name = "is_verified", nullable = false)
-    private boolean Verified = false;
+    private boolean verified = false;
 
     @Column(name = "onboarding_completed", nullable = false)
     private boolean onboardingCompleted = false;
@@ -51,6 +52,21 @@ public class User extends BaseEntity {
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private UserKyc kyc;
+
+    @Column(name = "status_changed_by")
+    private UUID statusChangedBy;
+
+    @Column(name = "status_changed_at")
+    private LocalDateTime statusChangedAt;
+
+    @Column(name = "status_reason")
+    private String statusReason;
+
+    @Column(name = "is_deleted", nullable = false)
+    private boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     public void setProfile(UserProfile profile) {
         this.profile = profile;

@@ -1,5 +1,6 @@
 package com.payflowx.user.serviceImpl;
 
+import com.payflowx.user.constant.ErrorCode;
 import com.payflowx.user.dto.*;
 import com.payflowx.user.entity.User;
 import com.payflowx.user.entity.UserAddress;
@@ -35,7 +36,7 @@ public class AddressServiceImpl implements AddressService {
         User user = getUser(authUserId);
         long count = addressRepository.countByUserId(user.getId());
         if (count >= MAX_ADDRESS_LIMIT) {
-            throw new BusinessValidationException("Maximum address limit reached");
+            throw new BusinessValidationException(ErrorCode.ADDRESS_LIMIT_EXCEEDED);
         }
         if (request.defaultAddress()) {
             clearExistingDefault(user.getId());
@@ -69,7 +70,7 @@ public class AddressServiceImpl implements AddressService {
     public AddressResponse getAddressById(UUID authUserId, UUID addressId) {
         User user = getUser(authUserId);
         UserAddress address = addressRepository.findByIdAndUserId(addressId, user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Address not found"));
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.ADDRESS_NOT_FOUND));
 
         return mapper.toAddressResponse(address);
     }
@@ -79,7 +80,7 @@ public class AddressServiceImpl implements AddressService {
         User user = getUser(authUserId);
 
         UserAddress address = addressRepository.findByUserIdAndDefaultAddressTrue(user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Default address not found"));
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.DEFAULT_ADDRESS_NOT_FOUND));
 
         return mapper.toAddressResponse(address);
     }
@@ -90,7 +91,7 @@ public class AddressServiceImpl implements AddressService {
     public AddressResponse updateAddress(UUID authUserId, UUID addressId, UpdateAddressRequest request) {
         User user = getUser(authUserId);
         UserAddress address = addressRepository.findByIdAndUserId(addressId, user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Address not found"));
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.ADDRESS_NOT_FOUND));
         if (request.defaultAddress() != null && request.defaultAddress()) {
             clearExistingDefault(user.getId());
             address.setDefaultAddress(true);
@@ -110,7 +111,7 @@ public class AddressServiceImpl implements AddressService {
     public AddressResponse setDefaultAddress(UUID authUserId, UUID addressId) {
         User user = getUser(authUserId);
         UserAddress address = addressRepository.findByIdAndUserId(addressId, user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Address not found"));
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.ADDRESS_NOT_FOUND));
         clearExistingDefault(user.getId());
         address.setDefaultAddress(true);
         log.info("Default address set addressId={}", addressId);
@@ -123,7 +124,7 @@ public class AddressServiceImpl implements AddressService {
     public void deleteAddress(UUID authUserId, UUID addressId) {
         User user = getUser(authUserId);
         UserAddress address = addressRepository.findByIdAndUserId(addressId, user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Address not found"));
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.ADDRESS_NOT_FOUND));
         boolean wasDefault = address.isDefaultAddress();
         addressRepository.delete(address);
         if (wasDefault) {
@@ -142,8 +143,8 @@ public class AddressServiceImpl implements AddressService {
     }
 
     private User getUser(UUID authUserId) {
-        return userRepository.findByAuthUserId(authUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return userRepository.findByAuthUserIdAndDeletedFalse(authUserId)
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.USER_NOT_FOUND));
     }
 
     private void clearExistingDefault(UUID userId) {

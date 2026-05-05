@@ -22,6 +22,7 @@ public interface UserMapper {
     @Mapping(target = "accountStatus", expression = "java(user.getAccountStatus() != null ? user.getAccountStatus().name() : null)")
     @Mapping(target = "addresses", source = "addresses")
     @Mapping(target = "onboardingCompleted", source = "onboardingCompleted")
+    @Mapping(target = "isVerified", source = "verified")
     UserResponse toResponse(User user);
 
     @Mapping(target = "defaultAddress", source = "defaultAddress")
