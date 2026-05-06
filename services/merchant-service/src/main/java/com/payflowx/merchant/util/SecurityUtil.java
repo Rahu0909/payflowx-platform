@@ -1,11 +1,10 @@
-package com.payflowx.user.util;
+package com.payflowx.merchant.util;
 
-import com.payflowx.user.constant.ErrorCode;
-import com.payflowx.user.exception.BusinessValidationException;
+import com.payflowx.merchant.constant.ErrorCode;
+import com.payflowx.merchant.exception.BusinessValidationException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-
-import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.UUID;
 

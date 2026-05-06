@@ -72,6 +72,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         var mutatedRequest = exchange.getRequest().mutate()
                 .header("X-Auth-UserId", userId)
                 .header("X-Auth-Email", email)
+                .header("X-Auth-Role", role)
                 .build();
 
         var mutatedExchange = exchange.mutate()
@@ -81,23 +82,35 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         return chain.filter(mutatedExchange);
     }
 
-    private Mono<Void> unauthorized(ServerWebExchange exchange,
-                                    String message) {
-
+    private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
         log.warn(message);
-
-        exchange.getResponse()
-                .setStatusCode(HttpStatus.UNAUTHORIZED);
-
-        return exchange.getResponse().setComplete();
+        var response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.UNAUTHORIZED);
+        response.getHeaders().add("Content-Type", "application/json");
+        String body = """
+                {
+                    "status": "FAILURE",
+                    "data": "UNAUTHORIZED",
+                    "message": "%s"
+                }
+                """.formatted(message);
+        var buffer = response.bufferFactory().wrap(body.getBytes());
+        return response.writeWith(Mono.just(buffer));
     }
 
     private Mono<Void> forbidden(ServerWebExchange exchange) {
-
-        exchange.getResponse()
-                .setStatusCode(HttpStatus.FORBIDDEN);
-
-        return exchange.getResponse().setComplete();
+        var response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.FORBIDDEN);
+        response.getHeaders().add("Content-Type", "application/json");
+        String body = """
+                {
+                    "status": "FAILURE",
+                    "data": "FORBIDDEN",
+                    "message": "Access denied"
+                }
+                """;
+        var buffer = response.bufferFactory().wrap(body.getBytes());
+        return response.writeWith(Mono.just(buffer));
     }
 
     @Override

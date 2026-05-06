@@ -1,0 +1,22 @@
+package com.payflowx.merchant.dto;
+
+import java.time.LocalDateTime;
+
+public record ApiResponse<T>(
+        String status,
+        T data,
+        String message,
+        LocalDateTime timestamp
+) {
+    public static <T> ApiResponse<T> success(T data, String message) {
+        return new ApiResponse<>("SUCCESS", data, message, LocalDateTime.now());
+    }
+
+    public static <T> ApiResponse<T> success(T data) {
+        return new ApiResponse<>("SUCCESS", data, null, LocalDateTime.now());
+    }
+
+    public static <T> ApiResponse<T> failure(String errorCode, String message) {
+        return new ApiResponse<>("FAILURE", (T) errorCode, message, LocalDateTime.now());
+    }
+}

@@ -10,6 +10,5 @@ public class AppConstants {
     public static final String UNAUTHORIZED = "Unauthorized";
     public static final String ROLE = "role";
     public static final String ADMIN = "ADMIN";
-    public static final String MERCHANT = "MERCHANT";
     public static final String USER = "USER";
 }

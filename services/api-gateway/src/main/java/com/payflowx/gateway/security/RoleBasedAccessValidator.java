@@ -11,7 +11,7 @@ public class RoleBasedAccessValidator {
 
     private static final Map<String, Set<String>> ACCESS_RULES = Map.of(
             "/admin", Set.of(AppConstants.ADMIN),
-            "/merchant", Set.of(AppConstants.MERCHANT, AppConstants.ADMIN),
+            "/merchants", Set.of(AppConstants.USER, AppConstants.ADMIN),
             "/users", Set.of(AppConstants.USER, AppConstants.ADMIN)
     );
 

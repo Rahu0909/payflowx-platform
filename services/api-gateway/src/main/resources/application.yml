@@ -51,6 +51,17 @@ spring:
           uri: lb://user-service
           predicates:
             - Path=/admin/users/**
+        # ===============================
+        # Merchant Service Routes
+        # ===============================
+        - id: merchant-service
+          uri: lb://merchant-service
+          predicates:
+            - Path=/merchants/**
+        - id: merchant-service-admin
+          uri: lb://merchant-service
+          predicates:
+            - Path=/admin/merchants/**
 
 management:
   endpoint:
