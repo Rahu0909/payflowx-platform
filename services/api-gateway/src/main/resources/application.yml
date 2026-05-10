@@ -92,6 +92,18 @@ spring:
           uri: lb://payment-service
           predicates:
             - Path=/internal/payments/**
+        # ===============================
+        # Settlement Service Routes
+        # ===============================
+        - id: settlement-service
+          uri: lb://settlement-service
+          predicates:
+            - Path=/settlements/**
+
+        - id: settlement-service-admin
+          uri: lb://settlement-service
+          predicates:
+            - Path=/admin/settlements/**
 
 management:
   endpoint:
