@@ -13,17 +13,16 @@ public class RoleBasedAccessValidator {
             "/admin", Set.of(AppConstants.ADMIN),
             "/merchants", Set.of(AppConstants.USER, AppConstants.ADMIN),
             "/users", Set.of(AppConstants.USER, AppConstants.ADMIN),
-            "/orders", Set.of(AppConstants.USER, AppConstants.ADMIN)
+            "/orders", Set.of(AppConstants.USER, AppConstants.ADMIN),
+            "/payments", Set.of(AppConstants.USER, AppConstants.ADMIN)
     );
 
     public boolean hasAccess(String path, String role) {
-
-        for (var entry : ACCESS_RULES.entrySet()) {
-            if (path.startsWith(entry.getKey())) {
-                return entry.getValue().contains(role);
-            }
-        }
-
-        return true;
+        return ACCESS_RULES.entrySet()
+                .stream()
+                .filter(entry -> path.startsWith(entry.getKey()))
+                .findFirst()
+                .map(entry -> entry.getValue().contains(role))
+                .orElse(true);
     }
 }
