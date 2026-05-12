@@ -79,4 +79,48 @@ public class Payment extends BaseEntity {
 
     @Version
     private Long version;
+
+    /*
+     * Financial Breakdown
+     */
+    @Column(
+            name = "gross_amount",
+            nullable = false,
+            precision = 19,
+            scale = 2
+    )
+    private BigDecimal grossAmount;
+
+    @Column(
+            name = "platform_fee_amount",
+            nullable = false,
+            precision = 19,
+            scale = 2
+    )
+    private BigDecimal platformFeeAmount;
+
+    @Column(
+            name = "reserve_amount",
+            nullable = false,
+            precision = 19,
+            scale = 2
+    )
+    private BigDecimal reserveAmount;
+
+    @Column(
+            name = "net_settlement_amount",
+            nullable = false,
+            precision = 19,
+            scale = 2
+    )
+    private BigDecimal netSettlementAmount;
+
+    /*
+     * Settlement snapshot
+     */
+    @Column(
+            name = "settlement_delay_days",
+            nullable = false
+    )
+    private Integer settlementDelayDays;
 }

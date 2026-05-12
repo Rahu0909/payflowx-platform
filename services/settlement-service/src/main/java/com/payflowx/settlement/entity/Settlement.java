@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -54,4 +55,10 @@ public class Settlement extends BaseEntity {
 
     @Version
     private Long version;
+
+    @Column(name = "release_at")
+    private LocalDateTime releaseAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
 }

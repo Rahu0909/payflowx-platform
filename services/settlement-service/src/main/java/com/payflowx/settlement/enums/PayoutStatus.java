@@ -1,12 +1,9 @@
 package com.payflowx.settlement.enums;
 
-public enum SettlementStatus {
-
+public enum PayoutStatus {
     PENDING,
-    AVAILABLE,
     PROCESSING,
-    COMPLETED,
-    SETTLED,
+    SUCCESS,
     FAILED,
     REVERSED
 }

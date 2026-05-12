@@ -28,6 +28,12 @@ public record PaymentResponse(
 
         BigDecimal refundedAmount,
 
+        BigDecimal grossAmount,
+        BigDecimal platformFeeAmount,
+        BigDecimal reserveAmount,
+        BigDecimal netSettlementAmount,
+        Integer settlementDelayDays,
+
         LocalDateTime createdAt
 ) {
 }
