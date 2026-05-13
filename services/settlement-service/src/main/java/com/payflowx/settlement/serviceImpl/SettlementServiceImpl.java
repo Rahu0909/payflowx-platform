@@ -8,10 +8,13 @@ import com.payflowx.settlement.dto.response.SettlementResponse;
 import com.payflowx.settlement.entity.Settlement;
 import com.payflowx.settlement.enums.SettlementStatus;
 import com.payflowx.settlement.enums.SettlementType;
+import com.payflowx.settlement.enums.SettlementWebhookEventType;
 import com.payflowx.settlement.exception.BusinessValidationException;
 import com.payflowx.settlement.repository.SettlementRepository;
+import com.payflowx.settlement.service.LedgerService;
 import com.payflowx.settlement.service.MerchantBalanceService;
 import com.payflowx.settlement.service.SettlementService;
+import com.payflowx.settlement.service.SettlementWebhookEventService;
 import com.payflowx.settlement.util.SettlementReferenceGeneratorUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,8 @@ public class SettlementServiceImpl implements SettlementService {
     private final SettlementRepository settlementRepository;
     private final PaymentClient paymentClient;
     private final MerchantBalanceService merchantBalanceService;
+    private final SettlementWebhookEventService webhookEventService;
+    private final LedgerService ledgerService;
 
     @Override
     @Transactional
@@ -41,13 +46,10 @@ public class SettlementServiceImpl implements SettlementService {
             throw new BusinessValidationException(ErrorCode.PAYMENT_NOT_FOUND);
         }
         InternalPaymentSettlementResponse payment = response.data();
-        Settlement settlement = Settlement.builder().settlementReference(SettlementReferenceGeneratorUtil.generateReference())
-                .merchantId(payment.merchantId()).paymentId(payment.paymentId())
-                .type(SettlementType.PAYMENT).status(SettlementStatus.PENDING)
-                .amount(payment.netSettlementAmount()).currency(payment.currency())
-                .description("Settlement for payment " + payment.paymentId())
-                .releaseAt(settlementReleaseTime(payment.settlementDelayDays())).build();
+        Settlement settlement = Settlement.builder().settlementReference(SettlementReferenceGeneratorUtil.generateReference()).merchantId(payment.merchantId()).paymentId(payment.paymentId()).type(SettlementType.PAYMENT).status(SettlementStatus.PENDING).amount(payment.netSettlementAmount()).currency(payment.currency()).description("Settlement for payment " + payment.paymentId()).releaseAt(settlementReleaseTime(payment.settlementDelayDays())).build();
         settlementRepository.save(settlement);
+        ledgerService.recordSettlementEntry(settlement.getMerchantId(), settlement.getId(), settlement.getAmount(), settlement.getCurrency());
+        webhookEventService.publishSettlementEvent(settlement, SettlementWebhookEventType.SETTLEMENT_CREATED);
         /*
          * ADD TO PENDING BALANCE
          */

@@ -85,13 +85,54 @@ public class MerchantBalanceServiceImpl implements MerchantBalanceService {
     @Override
     @Transactional(readOnly = true)
     public MerchantBalanceResponse getBalance(UUID merchantId) {
-        MerchantBalance balance = merchantBalanceRepository.findByMerchantId(merchantId)
-                .orElseThrow(() -> new BusinessValidationException(ErrorCode.MERCHANT_BALANCE_NOT_FOUND));
+        MerchantBalance balance = merchantBalanceRepository.findByMerchantId(merchantId).orElseThrow(() -> new BusinessValidationException(ErrorCode.MERCHANT_BALANCE_NOT_FOUND));
         return merchantBalanceMapper.toResponse(balance);
     }
+
     private void validatePositiveAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessValidationException(ErrorCode.INVALID_SETTLEMENT_AMOUNT);
         }
+    }
+
+    @Override
+    @Transactional
+    public void reserveBalance(UUID merchantId, BigDecimal amount) {
+        validatePositiveAmount(amount);
+        MerchantBalance balance = getOrCreateBalance(merchantId);
+        if (balance.getAvailableBalance().compareTo(amount) < 0) {
+            throw new BusinessValidationException(ErrorCode.INSUFFICIENT_AVAILABLE_BALANCE);
+        }
+        balance.setAvailableBalance(balance.getAvailableBalance().subtract(amount));
+        balance.setReservedBalance(balance.getReservedBalance().add(amount));
+        merchantBalanceRepository.save(balance);
+        log.info("Balance reserved merchantId={} amount={}", merchantId, amount);
+    }
+
+    @Override
+    @Transactional
+    public void releaseReservedBalance(UUID merchantId, BigDecimal amount) {
+        validatePositiveAmount(amount);
+        MerchantBalance balance = getOrCreateBalance(merchantId);
+        if (balance.getReservedBalance().compareTo(amount) < 0) {
+            throw new BusinessValidationException(ErrorCode.INSUFFICIENT_RESERVED_BALANCE);
+        }
+        balance.setReservedBalance(balance.getReservedBalance().subtract(amount));
+        balance.setAvailableBalance(balance.getAvailableBalance().add(amount));
+        merchantBalanceRepository.save(balance);
+        log.info("Reserved balance released merchantId={} amount={}", merchantId, amount);
+    }
+
+    @Override
+    @Transactional
+    public void deductReservedBalance(UUID merchantId, BigDecimal amount) {
+        validatePositiveAmount(amount);
+        MerchantBalance balance = getOrCreateBalance(merchantId);
+        if (balance.getReservedBalance().compareTo(amount) < 0) {
+            throw new BusinessValidationException(ErrorCode.INSUFFICIENT_RESERVED_BALANCE);
+        }
+        balance.setReservedBalance(balance.getReservedBalance().subtract(amount));
+        merchantBalanceRepository.save(balance);
+        log.info("Reserved balance deducted merchantId={} amount={}", merchantId, amount);
     }
 }

@@ -2,6 +2,7 @@ package com.payflowx.payment.serviceImpl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.payflowx.payment.client.SettlementClient;
 import com.payflowx.payment.constant.ErrorCode;
 import com.payflowx.payment.dto.request.CreatePaymentRequest;
 import com.payflowx.payment.dto.response.InternalOrderValidationResponse;
@@ -14,6 +15,7 @@ import com.payflowx.payment.entity.PaymentIdempotency;
 import com.payflowx.payment.enums.Currency;
 import com.payflowx.payment.enums.PaymentEventType;
 import com.payflowx.payment.enums.PaymentStatus;
+import com.payflowx.payment.event.PaymentSuccessSettlementEvent;
 import com.payflowx.payment.exception.BusinessValidationException;
 import com.payflowx.payment.mapper.PaymentMapper;
 import com.payflowx.payment.processor.PaymentProcessor;
@@ -26,6 +28,7 @@ import com.payflowx.payment.util.SecurityUtil;
 import com.payflowx.payment.validator.PaymentStateMachineValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +49,8 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentEventService paymentEventService;
     private final ObjectMapper objectMapper;
     private final PaymentFinancialService paymentFinancialService;
+    private final SettlementClient settlementClient;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Transactional
@@ -59,8 +64,7 @@ public class PaymentServiceImpl implements PaymentService {
             PaymentIdempotency existingRecord = idempotencyService.validateOrGet(idempotencyKey, requestHash);
             if (existingRecord != null) {
                 log.info("Idempotent replay detected key={}", idempotencyKey);
-                Payment existingPayment = paymentRepository.findById(existingRecord.getPaymentId())
-                        .orElseThrow(() -> new BusinessValidationException(ErrorCode.PAYMENT_NOT_FOUND));
+                Payment existingPayment = paymentRepository.findById(existingRecord.getPaymentId()).orElseThrow(() -> new BusinessValidationException(ErrorCode.PAYMENT_NOT_FOUND));
                 return paymentMapper.toResponse(existingPayment);
             }
         }
@@ -81,13 +85,10 @@ public class PaymentServiceImpl implements PaymentService {
         /*
          * CREATE PAYMENT
          */
-        Payment payment = Payment.builder().paymentReference(ReferenceGeneratorUtil.generatePaymentReference()).orderId(request.orderId()).merchantId(order.merchantId()).userId(userId).amount(request.amount())
-                .currency(Currency.valueOf(order.currency())).paymentMethod(request.paymentMethod()).description(request.description())
+        Payment payment = Payment.builder().paymentReference(ReferenceGeneratorUtil.generatePaymentReference()).orderId(request.orderId()).merchantId(order.merchantId()).userId(userId).amount(request.amount()).currency(Currency.valueOf(order.currency())).paymentMethod(request.paymentMethod()).description(request.description())
                 /*
                  * Financial Snapshot
-                 */.grossAmount(financials.grossAmount()).platformFeeAmount(financials.platformFeeAmount()).reserveAmount(financials.reserveAmount())
-                .netSettlementAmount(financials.netSettlementAmount()).settlementDelayDays(financials.settlementDelayDays())
-                .status(PaymentStatus.CREATED).build();
+                 */.grossAmount(financials.grossAmount()).platformFeeAmount(financials.platformFeeAmount()).reserveAmount(financials.reserveAmount()).netSettlementAmount(financials.netSettlementAmount()).settlementDelayDays(financials.settlementDelayDays()).status(PaymentStatus.CREATED).build();
         paymentRepository.save(payment);
         paymentEventService.publishEvent(payment, PaymentEventType.PAYMENT_CREATED);
         log.info("Payment created paymentId={} orderId={}", payment.getId(), payment.getOrderId());
@@ -118,9 +119,11 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setGatewayReference(gatewayResponse.gatewayReference());
             payment.setFailureReason(null);
             paymentRepository.save(payment);
+            paymentRepository.flush();
             paymentEventService.publishEvent(payment, PaymentEventType.PAYMENT_SUCCESS);
             paymentAttemptService.markAttemptSuccess(attempt.getId(), gatewayResponse, processingTime);
             orderValidationService.markOrderPaid(payment.getOrderId());
+            applicationEventPublisher.publishEvent(new PaymentSuccessSettlementEvent(payment.getId()));
             log.info("Payment successful paymentId={} gatewayReference={}", payment.getId(), payment.getGatewayReference());
         } else {
             /*
@@ -140,8 +143,7 @@ public class PaymentServiceImpl implements PaymentService {
          */
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
             try {
-                idempotencyService.saveRecord(idempotencyKey, RequestHashUtil.generateHash(request)
-                        , payment.getId(), objectMapper.writeValueAsString(response));
+                idempotencyService.saveRecord(idempotencyKey, RequestHashUtil.generateHash(request), payment.getId(), objectMapper.writeValueAsString(response));
             } catch (DataIntegrityViolationException ex) {
                 log.warn("Concurrent idempotency conflict key={}", idempotencyKey);
             } catch (JsonProcessingException ex) {
@@ -154,8 +156,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional(readOnly = true)
     public PaymentResponse getPayment(String paymentReference) {
-        Payment payment = paymentRepository.findByPaymentReference(paymentReference)
-                .orElseThrow(() -> new BusinessValidationException(ErrorCode.PAYMENT_NOT_FOUND));
+        Payment payment = paymentRepository.findByPaymentReference(paymentReference).orElseThrow(() -> new BusinessValidationException(ErrorCode.PAYMENT_NOT_FOUND));
         return paymentMapper.toResponse(payment);
     }
 }

@@ -18,9 +18,7 @@ public class SettlementReleaseScheduler {
      */
     @Scheduled(fixedDelay = 60000)
     public void releaseSettlementsJob() {
-
         log.debug("Starting settlement release scheduler");
-
         settlementReleaseService.releaseSettlements();
     }
 }

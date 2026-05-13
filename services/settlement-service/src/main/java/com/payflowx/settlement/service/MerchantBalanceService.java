@@ -17,4 +17,10 @@ public interface MerchantBalanceService {
     void deductAvailableBalance(UUID merchantId, BigDecimal amount);
 
     MerchantBalanceResponse getBalance(UUID merchantId);
+
+    void reserveBalance(UUID merchantId, BigDecimal amount);
+
+    void releaseReservedBalance(UUID merchantId, BigDecimal amount);
+
+    void deductReservedBalance(UUID merchantId, BigDecimal amount);
 }

@@ -6,10 +6,12 @@ import com.payflowx.settlement.dto.response.PayoutResponse;
 import com.payflowx.settlement.entity.MerchantBalance;
 import com.payflowx.settlement.entity.Payout;
 import com.payflowx.settlement.enums.PayoutStatus;
+import com.payflowx.settlement.enums.SettlementWebhookEventType;
 import com.payflowx.settlement.exception.BusinessValidationException;
 import com.payflowx.settlement.repository.PayoutRepository;
 import com.payflowx.settlement.service.MerchantBalanceService;
 import com.payflowx.settlement.service.PayoutService;
+import com.payflowx.settlement.service.SettlementWebhookEventService;
 import com.payflowx.settlement.util.PayoutReferenceGeneratorUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ import java.util.UUID;
 public class PayoutServiceImpl implements PayoutService {
     private final PayoutRepository payoutRepository;
     private final MerchantBalanceService merchantBalanceService;
+    private final SettlementWebhookEventService webhookEventService;
 
     @Override
     @Transactional
@@ -39,9 +42,9 @@ public class PayoutServiceImpl implements PayoutService {
         /*
          * CREATE PAYOUT REQUEST
          */
-        Payout payout = Payout.builder().payoutReference(PayoutReferenceGeneratorUtil.generateReference()).merchantId(merchantId).amount(request.amount()).currency(request.currency())
-                .status(PayoutStatus.PENDING).nextRetryAt(LocalDateTime.now()).build();
+        Payout payout = Payout.builder().payoutReference(PayoutReferenceGeneratorUtil.generateReference()).merchantId(merchantId).amount(request.amount()).currency(request.currency()).status(PayoutStatus.PENDING).nextRetryAt(LocalDateTime.now()).build();
         payoutRepository.save(payout);
+        webhookEventService.publishPayoutEvent(payout, SettlementWebhookEventType.PAYOUT_CREATED);
         log.info("Payout queued payoutId={} merchantId={} amount={}", payout.getId(), merchantId, request.amount());
         return map(payout);
     }

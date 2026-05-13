@@ -2,9 +2,12 @@ package com.payflowx.settlement.serviceImpl;
 
 import com.payflowx.settlement.entity.Payout;
 import com.payflowx.settlement.enums.PayoutStatus;
+import com.payflowx.settlement.enums.SettlementWebhookEventType;
 import com.payflowx.settlement.repository.PayoutRepository;
+import com.payflowx.settlement.service.LedgerService;
 import com.payflowx.settlement.service.MerchantBalanceService;
 import com.payflowx.settlement.service.PayoutProcessorService;
+import com.payflowx.settlement.service.SettlementWebhookEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,8 @@ public class PayoutProcessorServiceImpl implements PayoutProcessorService {
     private static final int MAX_RETRIES = 3;
     private final PayoutRepository payoutRepository;
     private final MerchantBalanceService merchantBalanceService;
+    private final SettlementWebhookEventService webhookEventService;
+    private final LedgerService ledgerService;
 
     @Override
     @Transactional
@@ -48,6 +53,13 @@ public class PayoutProcessorServiceImpl implements PayoutProcessorService {
                 payout.setProcessedAt(LocalDateTime.now());
                 payout.setBankReference("bank_" + UUID.randomUUID());
                 payout.setFailureReason(null);
+                ledgerService.recordPayoutEntry(
+                        payout.getMerchantId(),
+                        payout.getId(),
+                        payout.getAmount(),
+                        payout.getCurrency()
+                );
+                webhookEventService.publishPayoutEvent(payout, SettlementWebhookEventType.PAYOUT_SUCCESS);
                 log.info("Payout successful payoutId={}", payout.getId());
             } else {
                 throw new RuntimeException("Bank transfer failed");
@@ -58,6 +70,7 @@ public class PayoutProcessorServiceImpl implements PayoutProcessorService {
             if (payout.getRetryCount() >= MAX_RETRIES) {
                 payout.setStatus(PayoutStatus.FAILED);
                 payout.setNextRetryAt(null);
+                webhookEventService.publishPayoutEvent(payout, SettlementWebhookEventType.PAYOUT_FAILED);
                 log.error("Payout permanently failed payoutId={}", payout.getId());
             } else {
                 payout.setStatus(PayoutStatus.FAILED);
@@ -66,6 +79,7 @@ public class PayoutProcessorServiceImpl implements PayoutProcessorService {
             }
         }
     }
+
     /*
      * MOCK BANK SIMULATION
      */
