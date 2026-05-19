@@ -104,6 +104,26 @@ spring:
           uri: lb://settlement-service
           predicates:
             - Path=/admin/settlements/**
+        # ===============================
+        # Notification Service Routes
+        # ===============================
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/notifications/**
+
+        - id: notification-service-admin
+          uri: lb://notification-service
+          predicates:
+            - Path=/admin/notifications/**
+        - id: notification-service-public
+          uri: lb://notification-service
+          predicates:
+            - Path=/public/notifications/**
+        - id: notification-service-internal
+          uri: lb://notification-service
+          predicates:
+            - Path=/internal/notifications/**
 
 management:
   endpoint:

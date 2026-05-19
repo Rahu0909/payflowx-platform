@@ -72,6 +72,7 @@ public class ReconciliationServiceImpl implements ReconciliationService {
     private void saveFailure(ReconciliationType type, java.util.UUID referenceId, String details) {
         reconciliationRepository.save(Reconciliation.builder().type(type).status(ReconciliationStatus.FAILED)
                 .referenceId(referenceId).details(details).reconciledAt(LocalDateTime.now()).build());
+
         log.error("Reconciliation failed type={} referenceId={} details={}", type, referenceId, details);
     }
 }

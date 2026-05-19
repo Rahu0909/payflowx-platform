@@ -11,6 +11,7 @@ import com.payflowx.settlement.exception.BusinessValidationException;
 import com.payflowx.settlement.repository.PayoutRepository;
 import com.payflowx.settlement.service.MerchantBalanceService;
 import com.payflowx.settlement.service.PayoutService;
+import com.payflowx.settlement.service.SettlementEventPublisherService;
 import com.payflowx.settlement.service.SettlementWebhookEventService;
 import com.payflowx.settlement.util.PayoutReferenceGeneratorUtil;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class PayoutServiceImpl implements PayoutService {
     private final PayoutRepository payoutRepository;
     private final MerchantBalanceService merchantBalanceService;
     private final SettlementWebhookEventService webhookEventService;
+    private final SettlementEventPublisherService settlementEventPublisherService;
 
     @Override
     @Transactional
@@ -45,6 +47,7 @@ public class PayoutServiceImpl implements PayoutService {
         Payout payout = Payout.builder().payoutReference(PayoutReferenceGeneratorUtil.generateReference()).merchantId(merchantId).amount(request.amount()).currency(request.currency()).status(PayoutStatus.PENDING).nextRetryAt(LocalDateTime.now()).build();
         payoutRepository.save(payout);
         webhookEventService.publishPayoutEvent(payout, SettlementWebhookEventType.PAYOUT_CREATED);
+        settlementEventPublisherService.publishPayoutEvent(payout, SettlementWebhookEventType.PAYOUT_CREATED);
         log.info("Payout queued payoutId={} merchantId={} amount={}", payout.getId(), merchantId, request.amount());
         return map(payout);
     }

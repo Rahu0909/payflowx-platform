@@ -11,10 +11,7 @@ import com.payflowx.settlement.enums.SettlementType;
 import com.payflowx.settlement.enums.SettlementWebhookEventType;
 import com.payflowx.settlement.exception.BusinessValidationException;
 import com.payflowx.settlement.repository.SettlementRepository;
-import com.payflowx.settlement.service.LedgerService;
-import com.payflowx.settlement.service.MerchantBalanceService;
-import com.payflowx.settlement.service.SettlementService;
-import com.payflowx.settlement.service.SettlementWebhookEventService;
+import com.payflowx.settlement.service.*;
 import com.payflowx.settlement.util.SettlementReferenceGeneratorUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +30,7 @@ public class SettlementServiceImpl implements SettlementService {
     private final MerchantBalanceService merchantBalanceService;
     private final SettlementWebhookEventService webhookEventService;
     private final LedgerService ledgerService;
+    private final SettlementEventPublisherService settlementEventPublisherService;
 
     @Override
     @Transactional
@@ -50,6 +48,7 @@ public class SettlementServiceImpl implements SettlementService {
         settlementRepository.save(settlement);
         ledgerService.recordSettlementEntry(settlement.getMerchantId(), settlement.getId(), settlement.getAmount(), settlement.getCurrency());
         webhookEventService.publishSettlementEvent(settlement, SettlementWebhookEventType.SETTLEMENT_CREATED);
+        settlementEventPublisherService.publishSettlementEvent(settlement, SettlementWebhookEventType.SETTLEMENT_CREATED);
         /*
          * ADD TO PENDING BALANCE
          */

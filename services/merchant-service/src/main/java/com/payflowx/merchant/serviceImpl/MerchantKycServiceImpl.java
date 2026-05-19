@@ -8,6 +8,8 @@ import com.payflowx.merchant.entity.Merchant;
 import com.payflowx.merchant.entity.MerchantKyc;
 import com.payflowx.merchant.enums.KycStatus;
 import com.payflowx.merchant.enums.MerchantStatus;
+import com.payflowx.merchant.event.MerchantKycApprovedDomainEvent;
+import com.payflowx.merchant.event.MerchantKycRejectedDomainEvent;
 import com.payflowx.merchant.exception.BusinessValidationException;
 import com.payflowx.merchant.repository.MerchantKycRepository;
 import com.payflowx.merchant.repository.MerchantRepository;
@@ -15,6 +17,7 @@ import com.payflowx.merchant.service.MerchantKycService;
 import com.payflowx.merchant.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,7 @@ public class MerchantKycServiceImpl implements MerchantKycService {
 
     private final MerchantRepository merchantRepository;
     private final MerchantKycRepository kycRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     public MerchantKycResponse submitKyc(UUID authUserId, SubmitMerchantKycRequest request) {
@@ -75,6 +79,7 @@ public class MerchantKycServiceImpl implements MerchantKycService {
         merchant.setStatusChangedBy(SecurityUtil.getCurrentUserId());
         merchant.setStatusReason("KYC_APPROVED");
         kycRepository.save(kyc);
+        applicationEventPublisher.publishEvent(new MerchantKycApprovedDomainEvent(this, merchant.getId(), merchant.getEmail(), merchant.getBusinessName()));
         log.info("Merchant KYC approved merchantId={}", merchantId);
         return map(kyc);
     }
@@ -96,6 +101,7 @@ public class MerchantKycServiceImpl implements MerchantKycService {
         merchant.setStatusChangedBy(SecurityUtil.getCurrentUserId());
         merchant.setStatusReason("KYC_REJECTED");
         kycRepository.save(kyc);
+        applicationEventPublisher.publishEvent(new MerchantKycRejectedDomainEvent(this, merchant.getId(), merchant.getEmail(), merchant.getBusinessName(), request.reason()));
         log.warn("Merchant KYC rejected merchantId={}", merchantId);
         return map(kyc);
     }

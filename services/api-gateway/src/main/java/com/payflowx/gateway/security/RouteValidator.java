@@ -13,7 +13,8 @@ public class RouteValidator {
             "/auth/register",
             "/auth/refresh",
             "/eureka",
-            "/actuator"
+            "/actuator",
+            "/public/**"
     );
 
     public Predicate<String> isSecured =

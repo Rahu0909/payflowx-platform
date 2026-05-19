@@ -4,12 +4,14 @@ import com.payflowx.merchant.constant.ErrorCode;
 import com.payflowx.merchant.dto.request.CreateWebhookRequest;
 import com.payflowx.merchant.dto.request.UpdateWebhookRequest;
 import com.payflowx.merchant.dto.request.WebhookSignatureRequest;
+import com.payflowx.merchant.dto.response.InternalMerchantWebhookResponse;
 import com.payflowx.merchant.dto.response.WebhookResponse;
 import com.payflowx.merchant.dto.response.WebhookSignatureResponse;
 import com.payflowx.merchant.entity.Merchant;
 import com.payflowx.merchant.entity.MerchantWebhook;
 import com.payflowx.merchant.enums.KycStatus;
 import com.payflowx.merchant.enums.MerchantStatus;
+import com.payflowx.merchant.enums.WebhookStatus;
 import com.payflowx.merchant.exception.BusinessValidationException;
 import com.payflowx.merchant.mapper.WebhookMapper;
 import com.payflowx.merchant.repository.MerchantKycRepository;
@@ -92,13 +94,31 @@ public class MerchantWebhookServiceImpl implements MerchantWebhookService {
         return new WebhookSignatureResponse(signature);
     }
 
-    private Merchant validateMerchant(UUID authUserId) {
-        Merchant merchant = merchantRepository.findByAuthUserIdAndDeletedFalse(authUserId).orElseThrow(() -> new BusinessValidationException(ErrorCode.MERCHANT_NOT_FOUND));
+    @Override
+    @Transactional(readOnly = true)
+    public InternalMerchantWebhookResponse getMerchantWebhook(String merchantId) {
+        Merchant merchant = merchantRepository.findById(UUID.fromString(merchantId))
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.MERCHANT_NOT_FOUND));
+        if (merchant.isDeleted()) {
+            throw new BusinessValidationException(ErrorCode.MERCHANT_NOT_FOUND);
+        }
         if (merchant.getStatus() != MerchantStatus.ACTIVE) {
             throw new BusinessValidationException(ErrorCode.MERCHANT_NOT_ACTIVE);
         }
+        MerchantWebhook webhook = webhookRepository.findFirstByMerchantIdAndDeletedFalseAndStatus(merchant.getId(), WebhookStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.WEBHOOK_NOT_FOUND));
+        log.info("Merchant webhook fetched merchantId={} webhookId={}", merchant.getId(), webhook.getId());
+        return InternalMerchantWebhookResponse.builder().merchantId(merchant.getId().toString()).webhookUrl(webhook.getWebhookUrl()).webhookSecret(webhook.getWebhookSecret()).active(true).build();
+    }
 
-        var kyc = kycRepository.findByMerchantId(merchant.getId()).orElseThrow(() -> new BusinessValidationException(ErrorCode.KYC_NOT_FOUND));
+    private Merchant validateMerchant(UUID authUserId) {
+        Merchant merchant = merchantRepository.findByAuthUserIdAndDeletedFalse(authUserId)
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.MERCHANT_NOT_FOUND));
+        if (merchant.getStatus() != MerchantStatus.ACTIVE) {
+            throw new BusinessValidationException(ErrorCode.MERCHANT_NOT_ACTIVE);
+        }
+        var kyc = kycRepository.findByMerchantId(merchant.getId())
+                .orElseThrow(() -> new BusinessValidationException(ErrorCode.KYC_NOT_FOUND));
         if (kyc.getKycStatus() != KycStatus.VERIFIED) {
             throw new BusinessValidationException(ErrorCode.KYC_NOT_VERIFIED);
         }

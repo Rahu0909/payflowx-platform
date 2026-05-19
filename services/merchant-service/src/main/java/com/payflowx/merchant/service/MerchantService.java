@@ -4,6 +4,7 @@ import com.payflowx.merchant.dto.request.CreateMerchantRequest;
 import com.payflowx.merchant.dto.request.UpdateMerchantStatusRequest;
 import com.payflowx.merchant.dto.response.AdminMerchantResponse;
 import com.payflowx.merchant.dto.response.MerchantResponse;
+import com.payflowx.merchant.dto.response.MerchantWebhookResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -22,4 +23,6 @@ public interface MerchantService {
     AdminMerchantResponse updateMerchantStatus(UUID merchantId, UpdateMerchantStatusRequest request);
 
     void deactivateMerchant(UUID merchantId);
+
+    MerchantWebhookResponse getMerchantWebhook(String merchantId);
 }

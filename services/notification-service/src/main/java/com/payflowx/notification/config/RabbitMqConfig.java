@@ -1,0 +1,226 @@
+package com.payflowx.notification.config;
+
+import org.springframework.amqp.core.*;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class RabbitMqConfig {
+
+    public RabbitMqConfig() {
+    }
+
+    /*
+     EXCHANGE
+     */
+    public static final String NOTIFICATION_EXCHANGE = "payflowx.notification.exchange";
+    public static final String DEAD_LETTER_EXCHANGE = "payflowx.notification.dlx";
+
+    /*
+     ROUTING KEYS
+     */
+    public static final String MERCHANT_KYC_APPROVED_ROUTING_KEY = "merchant.kyc.approved";
+    public static final String MERCHANT_KYC_REJECTED_ROUTING_KEY = "merchant.kyc.rejected";
+
+    /*
+     APPROVED QUEUES
+     */
+    public static final String MERCHANT_KYC_APPROVED_QUEUE = "merchant.kyc.approved.queue";
+    public static final String MERCHANT_KYC_APPROVED_RETRY_QUEUE = "merchant.kyc.approved.retry.queue";
+    public static final String MERCHANT_KYC_APPROVED_DLQ = "merchant.kyc.approved.dlq";
+
+    /*
+     REJECTED QUEUES
+     */
+    public static final String MERCHANT_KYC_REJECTED_QUEUE = "merchant.kyc.rejected.queue";
+    public static final String MERCHANT_KYC_REJECTED_RETRY_QUEUE = "merchant.kyc.rejected.retry.queue";
+    public static final String MERCHANT_KYC_REJECTED_DLQ = "merchant.kyc.rejected.dlq";
+
+
+    public static final String PAYMENT_NOTIFICATION_QUEUE = "payment.notification.queue";
+
+    public static final String PAYMENT_CREATED_ROUTING_KEY = "payment.created";
+    public static final String PAYMENT_PROCESSING_ROUTING_KEY = "payment.processing";
+    public static final String PAYMENT_SUCCESS_ROUTING_KEY = "payment.success";
+    public static final String PAYMENT_FAILED_ROUTING_KEY = "payment.failed";
+    public static final String REFUND_CREATED_ROUTING_KEY = "refund.created";
+    public static final String REFUND_SUCCESS_ROUTING_KEY = "refund.success";
+    public static final String REFUND_FAILED_ROUTING_KEY = "refund.failed";
+    public static final String SETTLEMENT_CREATED_ROUTING_KEY = "settlement.created";
+    public static final String SETTLEMENT_COMPLETED_ROUTING_KEY = "settlement.completed";
+    public static final String SETTLEMENT_FAILED_ROUTING_KEY = "settlement.failed";
+    public static final String PAYOUT_CREATED_ROUTING_KEY = "payout.created";
+    public static final String PAYOUT_SUCCESS_ROUTING_KEY = "payout.success";
+    public static final String PAYOUT_FAILED_ROUTING_KEY = "payout.failed";
+    public static final String PAYOUT_REVERSED_ROUTING_KEY = "payout.reversed";
+    public static final String TREASURY_NOTIFICATION_QUEUE = "treasury.notification.queue";
+
+    /*
+     EXCHANGES
+     */
+    @Bean
+    public DirectExchange notificationExchange() {
+        return new DirectExchange(NOTIFICATION_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public DirectExchange deadLetterExchange() {
+        return new DirectExchange(DEAD_LETTER_EXCHANGE, true, false);
+    }
+
+    /*
+     APPROVED MAIN QUEUE
+     */
+    @Bean
+    public Queue merchantKycApprovedQueue() {
+        return QueueBuilder.durable(MERCHANT_KYC_APPROVED_QUEUE).withArgument("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE).withArgument("x-dead-letter-routing-key", MERCHANT_KYC_APPROVED_DLQ).build();
+    }
+
+    /*
+     APPROVED RETRY QUEUE
+     */
+    @Bean
+    public Queue merchantKycApprovedRetryQueue() {
+
+        return QueueBuilder.durable(MERCHANT_KYC_APPROVED_RETRY_QUEUE).withArgument("x-message-ttl", 30000).withArgument("x-dead-letter-exchange", NOTIFICATION_EXCHANGE).withArgument("x-dead-letter-routing-key", MERCHANT_KYC_APPROVED_ROUTING_KEY).build();
+    }
+
+    /*
+     APPROVED DLQ
+     */
+    @Bean
+    public Queue merchantKycApprovedDlq() {
+        return QueueBuilder.durable(MERCHANT_KYC_APPROVED_DLQ).build();
+    }
+
+    /*
+     REJECTED MAIN QUEUE
+     */
+    @Bean
+    public Queue merchantKycRejectedQueue() {
+        return QueueBuilder.durable(MERCHANT_KYC_REJECTED_QUEUE).withArgument("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE).withArgument("x-dead-letter-routing-key", MERCHANT_KYC_REJECTED_DLQ).build();
+    }
+
+    /*
+     REJECTED RETRY QUEUE
+     */
+    @Bean
+    public Queue merchantKycRejectedRetryQueue() {
+        return QueueBuilder.durable(MERCHANT_KYC_REJECTED_RETRY_QUEUE).withArgument("x-message-ttl", 30000).withArgument("x-dead-letter-exchange", NOTIFICATION_EXCHANGE).withArgument("x-dead-letter-routing-key", MERCHANT_KYC_REJECTED_ROUTING_KEY).build();
+    }
+
+    /*
+     REJECTED DLQ
+     */
+    @Bean
+    public Queue merchantKycRejectedDlq() {
+        return QueueBuilder.durable(MERCHANT_KYC_REJECTED_DLQ).build();
+    }
+
+    /*
+     BINDINGS
+     */
+    @Bean
+    public Binding merchantKycApprovedBinding() {
+        return BindingBuilder.bind(merchantKycApprovedQueue()).to(notificationExchange()).with(MERCHANT_KYC_APPROVED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding merchantKycRejectedBinding() {
+        return BindingBuilder.bind(merchantKycRejectedQueue()).to(notificationExchange()).with(MERCHANT_KYC_REJECTED_ROUTING_KEY);
+    }
+
+    /*
+     DLQ BINDINGS
+     */
+    @Bean
+    public Binding merchantKycApprovedDlqBinding() {
+        return BindingBuilder.bind(merchantKycApprovedDlq()).to(deadLetterExchange()).with(MERCHANT_KYC_APPROVED_DLQ);
+    }
+
+    @Bean
+    public Binding merchantKycRejectedDlqBinding() {
+        return BindingBuilder.bind(merchantKycRejectedDlq()).to(deadLetterExchange()).with(MERCHANT_KYC_REJECTED_DLQ);
+    }
+
+    @Bean
+    public Queue paymentNotificationQueue() {
+        return new Queue(PAYMENT_NOTIFICATION_QUEUE);
+    }
+
+    @Bean
+    public Binding paymentCreatedBinding() {
+        return BindingBuilder.bind(paymentNotificationQueue()).to(notificationExchange()).with(PAYMENT_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding paymentProcessingBinding() {
+        return BindingBuilder.bind(paymentNotificationQueue()).to(notificationExchange()).with(PAYMENT_PROCESSING_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding paymentSuccessBinding() {
+        return BindingBuilder.bind(paymentNotificationQueue()).to(notificationExchange()).with(PAYMENT_SUCCESS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding paymentFailedBinding() {
+        return BindingBuilder.bind(paymentNotificationQueue()).to(notificationExchange()).with(PAYMENT_FAILED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding refundCreatedBinding() {
+        return BindingBuilder.bind(paymentNotificationQueue()).to(notificationExchange()).with(REFUND_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding refundSuccessBinding() {
+        return BindingBuilder.bind(paymentNotificationQueue()).to(notificationExchange()).with(REFUND_SUCCESS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding refundFailedBinding() {
+        return BindingBuilder.bind(paymentNotificationQueue()).to(notificationExchange()).with(REFUND_FAILED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue treasuryNotificationQueue() {
+        return QueueBuilder.durable(TREASURY_NOTIFICATION_QUEUE).build();
+    }
+
+    @Bean
+    public Binding settlementCreatedBinding() {
+        return BindingBuilder.bind(treasuryNotificationQueue()).to(notificationExchange()).with(SETTLEMENT_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding settlementCompletedBinding() {
+        return BindingBuilder.bind(treasuryNotificationQueue()).to(notificationExchange()).with(SETTLEMENT_COMPLETED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding settlementFailedBinding() {
+        return BindingBuilder.bind(treasuryNotificationQueue()).to(notificationExchange()).with(SETTLEMENT_FAILED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding payoutCreatedBinding() {
+        return BindingBuilder.bind(treasuryNotificationQueue()).to(notificationExchange()).with(PAYOUT_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding payoutSuccessBinding() {
+        return BindingBuilder.bind(treasuryNotificationQueue()).to(notificationExchange()).with(PAYOUT_SUCCESS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding payoutFailedBinding() {
+        return BindingBuilder.bind(treasuryNotificationQueue()).to(notificationExchange()).with(PAYOUT_FAILED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding payoutReversedBinding() {
+        return BindingBuilder.bind(treasuryNotificationQueue()).to(notificationExchange()).with(PAYOUT_REVERSED_ROUTING_KEY);
+    }
+}
