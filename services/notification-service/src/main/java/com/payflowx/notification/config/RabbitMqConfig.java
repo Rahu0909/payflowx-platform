@@ -1,7 +1,6 @@
 package com.payflowx.notification.config;
 
 import org.springframework.amqp.core.*;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -55,6 +54,21 @@ public class RabbitMqConfig {
     public static final String PAYOUT_FAILED_ROUTING_KEY = "payout.failed";
     public static final String PAYOUT_REVERSED_ROUTING_KEY = "payout.reversed";
     public static final String TREASURY_NOTIFICATION_QUEUE = "treasury.notification.queue";
+
+    /*
+ AUTH ROUTING KEYS
+ */
+    public static final String USER_REGISTERED_ROUTING_KEY = "auth.user.registered";
+    public static final String LOGIN_SUCCESS_ROUTING_KEY = "auth.login.success";
+    public static final String PASSWORD_RESET_REQUESTED_ROUTING_KEY = "auth.password.reset.requested";
+    public static final String PASSWORD_RESET_SUCCESS_ROUTING_KEY = "auth.password.reset.success";
+    public static final String USER_LOGOUT_ROUTING_KEY = "auth.user.logout";
+    public static final String REFRESH_TOKEN_ROTATED_ROUTING_KEY = "auth.refresh.token.rotated";
+
+    /*
+     AUTH QUEUE
+     */
+    public static final String AUTH_NOTIFICATION_QUEUE = "auth.notification.queue";
 
     /*
      EXCHANGES
@@ -222,5 +236,40 @@ public class RabbitMqConfig {
     @Bean
     public Binding payoutReversedBinding() {
         return BindingBuilder.bind(treasuryNotificationQueue()).to(notificationExchange()).with(PAYOUT_REVERSED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue authNotificationQueue() {
+        return QueueBuilder.durable(AUTH_NOTIFICATION_QUEUE).build();
+    }
+
+    @Bean
+    public Binding userRegisteredBinding() {
+        return BindingBuilder.bind(authNotificationQueue()).to(notificationExchange()).with(USER_REGISTERED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding loginSuccessBinding() {
+        return BindingBuilder.bind(authNotificationQueue()).to(notificationExchange()).with(LOGIN_SUCCESS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding passwordResetRequestedBinding() {
+        return BindingBuilder.bind(authNotificationQueue()).to(notificationExchange()).with(PASSWORD_RESET_REQUESTED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding passwordResetSuccessBinding() {
+        return BindingBuilder.bind(authNotificationQueue()).to(notificationExchange()).with(PASSWORD_RESET_SUCCESS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userLogoutBinding() {
+        return BindingBuilder.bind(authNotificationQueue()).to(notificationExchange()).with(USER_LOGOUT_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding refreshTokenRotatedBinding() {
+        return BindingBuilder.bind(authNotificationQueue()).to(notificationExchange()).with(REFRESH_TOKEN_ROTATED_ROUTING_KEY);
     }
 }

@@ -27,4 +27,5 @@ public final class AppConstants {
     public static final String LOGOUT_SUCCESS = "Logout successful";
     public static final String TOKEN_REFRESHED = "Token refreshed";
     public static final String INVALID_REFRESH_TOKEN = "Invalid refresh token";
+    public static final String PASSWORD_CHANGED = "Password changed successfully";
 }

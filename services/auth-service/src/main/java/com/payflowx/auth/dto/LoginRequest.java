@@ -9,6 +9,12 @@ public record LoginRequest(
         String email,
 
         @NotBlank(message = "Password is required")
-        String password
+        String password,
+
+        String deviceName,
+
+        String ipAddress,
+
+        String userAgent
 ) {
 }

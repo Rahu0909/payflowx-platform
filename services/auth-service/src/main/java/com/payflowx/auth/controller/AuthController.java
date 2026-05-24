@@ -21,24 +21,22 @@ public class AuthController {
     }
 
     @PostMapping(AppConstants.LOGIN)
-    public ResponseEntity<ApiResponse<LoginResponse>> login(
-            @Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
 
     @PostMapping(AppConstants.REFRESH)
-    public ResponseEntity<ApiResponse<TokenResponse>> refresh(
-            @Valid @RequestBody RefreshRequest request) {
+    public ResponseEntity<ApiResponse<TokenResponse>> refresh(@Valid @RequestBody RefreshRequest request) {
         return ResponseEntity.ok(authService.refresh(request));
     }
 
-    @PostMapping(AppConstants.LOGOUT)
-    public ResponseEntity<ApiResponse<String>> logout(
-            @RequestHeader("Authorization") String authHeader,
-            @Valid @RequestBody LogoutRequest request) {
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<String>> logout(@RequestBody @Valid LogoutRequest request) {
+        return ResponseEntity.ok(authService.logout(request));
+    }
 
-        return ResponseEntity.ok(
-                authService.logout(authHeader, request)
-        );
+    @PatchMapping("/password/change")
+    public ResponseEntity<ApiResponse<String>> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
+        return ResponseEntity.ok(authService.changePassword(request));
     }
 }

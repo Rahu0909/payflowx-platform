@@ -9,5 +9,8 @@ public interface AuthService {
 
     ApiResponse<TokenResponse> refresh(RefreshRequest request);
 
-    ApiResponse<String> logout(String authHeader, LogoutRequest request);}
+    ApiResponse<String> logout(LogoutRequest request);
+
+    ApiResponse<String> changePassword(ChangePasswordRequest request);
+}
 
