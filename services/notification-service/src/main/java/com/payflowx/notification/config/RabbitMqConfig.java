@@ -65,10 +65,33 @@ public class RabbitMqConfig {
     public static final String USER_LOGOUT_ROUTING_KEY = "auth.user.logout";
     public static final String REFRESH_TOKEN_ROTATED_ROUTING_KEY = "auth.refresh.token.rotated";
 
+    public static final String USER_CREATED_ROUTING_KEY = "user.created";
+    public static final String USER_KYC_SUBMITTED_ROUTING_KEY = "user.kyc.submitted";
+    public static final String USER_KYC_APPROVED_ROUTING_KEY = "user.kyc.approved";
+    public static final String USER_KYC_REJECTED_ROUTING_KEY = "user.kyc.rejected";
+    public static final String USER_ACCOUNT_BLOCKED_ROUTING_KEY = "user.account.blocked";
+    public static final String USER_ACCOUNT_SUSPENDED_ROUTING_KEY = "user.account.suspended";
+
+    public static final String ORDER_CREATED_ROUTING_KEY = "order.created";
+    public static final String ORDER_CANCELLED_ROUTING_KEY = "order.cancelled";
+    public static final String ORDER_PAID_ROUTING_KEY = "order.paid";
+    public static final String ORDER_EXPIRED_ROUTING_KEY = "order.expired";
     /*
      AUTH QUEUE
      */
     public static final String AUTH_NOTIFICATION_QUEUE = "auth.notification.queue";
+    public static final String USER_NOTIFICATION_QUEUE = "user.notification.queue";
+    public static final String ORDER_NOTIFICATION_QUEUE = "order.notification.queue";
+
+    @Bean
+    public Queue userNotificationQueue() {
+        return QueueBuilder.durable(USER_NOTIFICATION_QUEUE).build();
+    }
+
+    @Bean
+    public Queue orderNotificationQueue() {
+        return QueueBuilder.durable(ORDER_NOTIFICATION_QUEUE).build();
+    }
 
     /*
      EXCHANGES
@@ -96,7 +119,6 @@ public class RabbitMqConfig {
      */
     @Bean
     public Queue merchantKycApprovedRetryQueue() {
-
         return QueueBuilder.durable(MERCHANT_KYC_APPROVED_RETRY_QUEUE).withArgument("x-message-ttl", 30000).withArgument("x-dead-letter-exchange", NOTIFICATION_EXCHANGE).withArgument("x-dead-letter-routing-key", MERCHANT_KYC_APPROVED_ROUTING_KEY).build();
     }
 
@@ -271,5 +293,55 @@ public class RabbitMqConfig {
     @Bean
     public Binding refreshTokenRotatedBinding() {
         return BindingBuilder.bind(authNotificationQueue()).to(notificationExchange()).with(REFRESH_TOKEN_ROTATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userCreatedBinding() {
+        return BindingBuilder.bind(userNotificationQueue()).to(notificationExchange()).with(USER_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userKycSubmittedBinding() {
+        return BindingBuilder.bind(userNotificationQueue()).to(notificationExchange()).with(USER_KYC_SUBMITTED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userKycApprovedBinding() {
+        return BindingBuilder.bind(userNotificationQueue()).to(notificationExchange()).with(USER_KYC_APPROVED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userKycRejectedBinding() {
+        return BindingBuilder.bind(userNotificationQueue()).to(notificationExchange()).with(USER_KYC_REJECTED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userAccountBlockedBinding() {
+        return BindingBuilder.bind(userNotificationQueue()).to(notificationExchange()).with(USER_ACCOUNT_BLOCKED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userAccountSuspendedBinding() {
+        return BindingBuilder.bind(userNotificationQueue()).to(notificationExchange()).with(USER_ACCOUNT_SUSPENDED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding orderCreatedBinding() {
+        return BindingBuilder.bind(orderNotificationQueue()).to(notificationExchange()).with(ORDER_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding orderCancelledBinding() {
+        return BindingBuilder.bind(orderNotificationQueue()).to(notificationExchange()).with(ORDER_CANCELLED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding orderPaidBinding() {
+        return BindingBuilder.bind(orderNotificationQueue()).to(notificationExchange()).with(ORDER_PAID_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding orderExpiredBinding() {
+        return BindingBuilder.bind(orderNotificationQueue()).to(notificationExchange()).with(ORDER_EXPIRED_ROUTING_KEY);
     }
 }

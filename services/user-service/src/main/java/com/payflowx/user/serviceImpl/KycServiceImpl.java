@@ -3,14 +3,16 @@ package com.payflowx.user.serviceImpl;
 import com.payflowx.user.constant.ErrorCode;
 import com.payflowx.user.dto.KycResponse;
 import com.payflowx.user.dto.SubmitKycRequest;
+import com.payflowx.user.dto.event.UserNotificationEvent;
 import com.payflowx.user.entity.User;
 import com.payflowx.user.entity.UserKyc;
 import com.payflowx.user.entity.enums.KycStatus;
+import com.payflowx.user.entity.enums.UserEventType;
 import com.payflowx.user.exception.BusinessValidationException;
-import com.payflowx.user.exception.ResourceNotFoundException;
 import com.payflowx.user.mapper.UserMapper;
 import com.payflowx.user.repository.UserRepository;
 import com.payflowx.user.service.KycService;
+import com.payflowx.user.service.UserNotificationPublisher;
 import com.payflowx.user.util.SecurityUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +29,8 @@ public class KycServiceImpl implements KycService {
 
     private final UserRepository userRepository;
     private final UserMapper mapper;
+    private final UserNotificationPublisher userNotificationPublisher;
 
-    /* ---------------- SUBMIT ---------------- */
     @Override
     @Transactional
     public KycResponse submitKyc(UUID authUserId, SubmitKycRequest request) {
@@ -49,11 +51,11 @@ public class KycServiceImpl implements KycService {
         kyc.setApprovedAt(LocalDateTime.now());
         kyc.setApprovedBy(SecurityUtil.getCurrentUserId());
         kyc.setRejectionReason(null);
+        publishKycEvent(user, UserEventType.USER_KYC_SUBMITTED, "KYC submitted successfully");
         log.info("KYC submitted for userId={}", user.getId());
         return mapper.toKycResponse(kyc);
     }
 
-    /* ---------------- GET ---------------- */
     @Override
     public KycResponse getKyc(UUID authUserId) {
         User user = getUser(authUserId);
@@ -63,7 +65,6 @@ public class KycServiceImpl implements KycService {
         return mapper.toKycResponse(user.getKyc());
     }
 
-    /* ---------------- UPDATE ---------------- */
     @Override
     @Transactional
     public KycResponse updateKyc(UUID authUserId, SubmitKycRequest request) {
@@ -83,16 +84,15 @@ public class KycServiceImpl implements KycService {
         kyc.setApprovedAt(LocalDateTime.now());
         kyc.setApprovedBy(SecurityUtil.getCurrentUserId());
         kyc.setRejectionReason(null);
+        publishKycEvent(user, UserEventType.USER_KYC_SUBMITTED, "KYC updated successfully");
         log.info("KYC updated for userId={}", user.getId());
         return mapper.toKycResponse(kyc);
     }
 
-    /* ---------------- APPROVE (ADMIN) ---------------- */
     @Override
     @Transactional
     public void approveKyc(UUID userId) {
-        User user = userRepository.findByIdAndDeletedFalse(userId)
-                .orElseThrow(() -> new BusinessValidationException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findByIdAndDeletedFalse(userId).orElseThrow(() -> new BusinessValidationException(ErrorCode.USER_NOT_FOUND));
         UserKyc kyc = user.getKyc();
         if (kyc == null) {
             throw new BusinessValidationException(ErrorCode.KYC_NOT_FOUND);
@@ -107,17 +107,16 @@ public class KycServiceImpl implements KycService {
         kyc.setVerifiedAt(LocalDateTime.now());
         kyc.setApprovedAt(LocalDateTime.now());
         kyc.setApprovedBy(SecurityUtil.getCurrentUserId());
-        kyc.setRejectionReason(null); // CLEANUP
+        kyc.setRejectionReason(null);
         user.setVerified(true);
+        publishKycEvent(user, UserEventType.USER_KYC_APPROVED, "KYC approved successfully");
         log.info("KYC approved for userId={}", userId);
     }
 
-    /* ---------------- REJECT (ADMIN) ---------------- */
     @Override
     @Transactional
     public void rejectKyc(UUID userId, String reason) {
-        User user = userRepository.findByIdAndDeletedFalse(userId)
-                .orElseThrow(() -> new BusinessValidationException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findByIdAndDeletedFalse(userId).orElseThrow(() -> new BusinessValidationException(ErrorCode.USER_NOT_FOUND));
         UserKyc kyc = user.getKyc();
         if (kyc == null) {
             throw new BusinessValidationException(ErrorCode.KYC_NOT_FOUND);
@@ -132,12 +131,17 @@ public class KycServiceImpl implements KycService {
         kyc.setRejectionReason(reason);
         kyc.setApprovedAt(LocalDateTime.now());
         kyc.setApprovedBy(SecurityUtil.getCurrentUserId());
-        kyc.setVerifiedAt(null); // CLEANUP
+        kyc.setVerifiedAt(null);
+        publishKycEvent(user, UserEventType.USER_KYC_REJECTED, reason);
         log.warn("KYC rejected for userId={}, reason={}", userId, reason);
     }
 
     private User getUser(UUID authUserId) {
-        return userRepository.findByAuthUserIdAndDeletedFalse(authUserId)
-                .orElseThrow(() -> new BusinessValidationException(ErrorCode.USER_NOT_FOUND));
+        return userRepository.findByAuthUserIdAndDeletedFalse(authUserId).orElseThrow(() -> new BusinessValidationException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private void publishKycEvent(User user, UserEventType eventType, String message) {
+        UserNotificationEvent event = UserNotificationEvent.builder().eventId(UUID.randomUUID()).userId(user.getId()).email(user.getEmail()).fullName(user.getProfile() != null ? user.getProfile().getFullName() : null).eventType(eventType.name()).message(message).occurredAt(LocalDateTime.now()).build();
+        userNotificationPublisher.publish(event);
     }
 }

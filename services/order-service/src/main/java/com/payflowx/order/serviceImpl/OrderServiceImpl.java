@@ -1,6 +1,7 @@
 package com.payflowx.order.serviceImpl;
 
 import com.payflowx.order.constant.ErrorCode;
+import com.payflowx.order.dto.event.OrderNotificationEvent;
 import com.payflowx.order.dto.request.CreateOrderRequest;
 import com.payflowx.order.dto.response.InternalMerchantValidationResponse;
 import com.payflowx.order.dto.response.OrderResponse;
@@ -10,10 +11,7 @@ import com.payflowx.order.enums.OrderStatus;
 import com.payflowx.order.exception.BusinessValidationException;
 import com.payflowx.order.mapper.OrderMapper;
 import com.payflowx.order.repository.OrderRepository;
-import com.payflowx.order.service.IdempotencyService;
-import com.payflowx.order.service.MerchantValidationService;
-import com.payflowx.order.service.OrderService;
-import com.payflowx.order.service.OrderWebhookEventService;
+import com.payflowx.order.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,6 +31,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final IdempotencyService idempotencyService;
     private final OrderWebhookEventService webhookEventService;
+    private final OrderNotificationPublisher orderNotificationPublisher;
 
     @Override
     @Transactional
@@ -59,6 +58,7 @@ public class OrderServiceImpl implements OrderService {
         Order order = Order.builder().merchantId(UUID.fromString(merchantValidation.merchantId())).merchantBusinessName(merchantValidation.businessName()).amount(request.amount()).currency(request.currency()).receipt(request.receipt()).customerEmail(request.customerEmail()).customerPhone(request.customerPhone()).status(OrderStatus.CREATED).expiresAt(expiresAt).build();
         orderRepository.save(order);
         webhookEventService.publishEvent(order, OrderEventType.ORDER_CREATED);
+        publishOrderEvent(order, OrderEventType.ORDER_CREATED, "Order created successfully");
         /*
          * SAVE IDEMPOTENCY RECORD
          */
@@ -113,6 +113,24 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
         webhookEventService.publishEvent(order, OrderEventType.ORDER_CANCELLED);
+        publishOrderEvent(order, OrderEventType.ORDER_CANCELLED, "Order cancelled successfully");
         log.info("Order cancelled orderId={}", order.getId());
+    }
+
+    private void publishOrderEvent(Order order, OrderEventType eventType, String message) {
+        OrderNotificationEvent event = OrderNotificationEvent.builder()
+                .eventId(UUID.randomUUID())
+                .orderId(order.getId())
+                .merchantId(order.getMerchantId())
+                .merchantBusinessName(order.getMerchantBusinessName())
+                .customerEmail(order.getCustomerEmail())
+                .customerPhone(order.getCustomerPhone())
+                .eventType(eventType.name())
+                .message(message)
+                .amount(order.getAmount())
+                .currency(order.getCurrency().name())
+                .occurredAt(LocalDateTime.now())
+                .build();
+        orderNotificationPublisher.publish(event);
     }
 }

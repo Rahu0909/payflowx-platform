@@ -1,6 +1,7 @@
 package com.payflowx.order.serviceImpl;
 
 import com.payflowx.order.constant.ErrorCode;
+import com.payflowx.order.dto.event.OrderNotificationEvent;
 import com.payflowx.order.dto.response.InternalOrderValidationResponse;
 import com.payflowx.order.entity.Order;
 import com.payflowx.order.enums.OrderEventType;
@@ -8,6 +9,7 @@ import com.payflowx.order.enums.OrderStatus;
 import com.payflowx.order.exception.BusinessValidationException;
 import com.payflowx.order.repository.OrderRepository;
 import com.payflowx.order.service.InternalOrderService;
+import com.payflowx.order.service.OrderNotificationPublisher;
 import com.payflowx.order.service.OrderWebhookEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,7 @@ import java.util.UUID;
 public class InternalOrderServiceImpl implements InternalOrderService {
     private final OrderRepository orderRepository;
     private final OrderWebhookEventService webhookEventService;
+    private final OrderNotificationPublisher orderNotificationPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -72,6 +75,24 @@ public class InternalOrderServiceImpl implements InternalOrderService {
         order.setPaidAt(LocalDateTime.now());
         orderRepository.save(order);
         webhookEventService.publishEvent(order, OrderEventType.ORDER_PAID);
+        publishOrderEvent(order, OrderEventType.ORDER_PAID, "Order Paid Successfully");
         log.info("Order marked paid orderId={} amount={}", order.getId(), order.getAmount());
+    }
+
+    private void publishOrderEvent(Order order, OrderEventType eventType, String message) {
+        OrderNotificationEvent event = OrderNotificationEvent.builder()
+                .eventId(UUID.randomUUID())
+                .orderId(order.getId())
+                .merchantId(order.getMerchantId())
+                .merchantBusinessName(order.getMerchantBusinessName())
+                .customerEmail(order.getCustomerEmail())
+                .customerPhone(order.getCustomerPhone())
+                .eventType(eventType.name())
+                .message(message)
+                .amount(order.getAmount())
+                .currency(order.getCurrency().name())
+                .occurredAt(LocalDateTime.now())
+                .build();
+        orderNotificationPublisher.publish(event);
     }
 }
