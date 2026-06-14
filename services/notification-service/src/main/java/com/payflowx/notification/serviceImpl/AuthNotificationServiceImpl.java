@@ -2,24 +2,34 @@ package com.payflowx.notification.serviceImpl;
 
 import com.payflowx.notification.dto.AuthNotificationMessage;
 import com.payflowx.notification.service.AuthNotificationService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AuthNotificationServiceImpl implements AuthNotificationService {
 
+    private final NotificationMetricsService notificationMetricsService;
     @Override
     public void process(AuthNotificationMessage message) {
-        log.info("Processing auth event type={} payload={}", message.eventType(), message.payload());
-        switch (message.eventType()) {
-            case "USER_REGISTERED" -> handleUserRegistered(message);
-            case "LOGIN_SUCCESS" -> handleLoginSuccess(message);
-            case "PASSWORD_RESET_REQUESTED" -> handlePasswordResetRequested(message);
-            case "PASSWORD_RESET_SUCCESS" -> handlePasswordResetSuccess(message);
-            case "USER_LOGOUT" -> handleUserLogout(message);
-            case "REFRESH_TOKEN_ROTATED" -> handleRefreshTokenRotated(message);
-            default -> log.warn("Unsupported auth event type={}", message.eventType());
+        try {
+            log.info("Processing auth event type={} payload={}", message.eventType(), message.payload());
+            switch (message.eventType()) {
+                case "USER_REGISTERED" -> handleUserRegistered(message);
+                case "LOGIN_SUCCESS" -> handleLoginSuccess(message);
+                case "PASSWORD_RESET_REQUESTED" -> handlePasswordResetRequested(message);
+                case "PASSWORD_RESET_SUCCESS" -> handlePasswordResetSuccess(message);
+                case "USER_LOGOUT" -> handleUserLogout(message);
+                case "REFRESH_TOKEN_ROTATED" -> handleRefreshTokenRotated(message);
+                default -> log.warn("Unsupported auth event type={}", message.eventType());
+            }
+            notificationMetricsService.incrementSent();
+            notificationMetricsService.incrementEmail();
+        } catch (Exception ex) {
+            notificationMetricsService.incrementFailed();
+            throw ex;
         }
     }
 

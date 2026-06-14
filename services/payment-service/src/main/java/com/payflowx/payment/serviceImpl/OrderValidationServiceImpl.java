@@ -9,6 +9,8 @@ import com.payflowx.payment.dto.response.InternalOrderValidationResponse;
 import com.payflowx.payment.exception.BusinessValidationException;
 import com.payflowx.payment.service.OrderValidationService;
 import feign.FeignException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,8 @@ public class OrderValidationServiceImpl implements OrderValidationService {
     private final ObjectMapper objectMapper;
 
     @Override
+    @CircuitBreaker(name = "order-service", fallbackMethod = "validateOrderFallback")
+    @Retry(name = "order-service")
     public InternalOrderValidationResponse validateOrder(UUID orderId, BigDecimal amount, String currency) {
         try {
             ApiResponse<InternalOrderValidationResponse> response = orderClient.validateOrder(orderId);
@@ -51,6 +55,8 @@ public class OrderValidationServiceImpl implements OrderValidationService {
     }
 
     @Override
+    @CircuitBreaker(name = "order-service", fallbackMethod = "markOrderPaidFallback")
+    @Retry(name = "order-service")
     public void markOrderPaid(UUID orderId) {
         try {
             orderClient.markOrderPaid(orderId);
@@ -84,5 +90,15 @@ public class OrderValidationServiceImpl implements OrderValidationService {
         } catch (Exception ignored) {
             throw new BusinessValidationException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private InternalOrderValidationResponse validateOrderFallback(UUID orderId, BigDecimal amount, String currency, Exception ex) {
+        log.error("Order validation failed. orderId={}", orderId, ex);
+        throw new BusinessValidationException(ErrorCode.ORDER_SERVICE_UNAVAILABLE);
+    }
+
+    private void markOrderPaidFallback(UUID orderId, Exception ex) {
+        log.error("Mark order paid failed. orderId={}", orderId, ex);
+        throw new BusinessValidationException(ErrorCode.ORDER_SERVICE_UNAVAILABLE);
     }
 }

@@ -32,6 +32,7 @@ public class OrderServiceImpl implements OrderService {
     private final IdempotencyService idempotencyService;
     private final OrderWebhookEventService webhookEventService;
     private final OrderNotificationPublisher orderNotificationPublisher;
+    private final OrderMetricsService orderMetricsService;
 
     @Override
     @Transactional
@@ -58,6 +59,7 @@ public class OrderServiceImpl implements OrderService {
         Order order = Order.builder().merchantId(UUID.fromString(merchantValidation.merchantId())).merchantBusinessName(merchantValidation.businessName()).amount(request.amount()).currency(request.currency()).receipt(request.receipt()).customerEmail(request.customerEmail()).customerPhone(request.customerPhone()).status(OrderStatus.CREATED).expiresAt(expiresAt).build();
         orderRepository.save(order);
         webhookEventService.publishEvent(order, OrderEventType.ORDER_CREATED);
+        orderMetricsService.incrementCreated();
         publishOrderEvent(order, OrderEventType.ORDER_CREATED, "Order created successfully");
         /*
          * SAVE IDEMPOTENCY RECORD
@@ -112,6 +114,7 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
+        orderMetricsService.incrementCancelled();
         webhookEventService.publishEvent(order, OrderEventType.ORDER_CANCELLED);
         publishOrderEvent(order, OrderEventType.ORDER_CANCELLED, "Order cancelled successfully");
         log.info("Order cancelled orderId={}", order.getId());

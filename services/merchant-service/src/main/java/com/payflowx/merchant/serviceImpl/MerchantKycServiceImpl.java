@@ -33,7 +33,7 @@ public class MerchantKycServiceImpl implements MerchantKycService {
     private final MerchantRepository merchantRepository;
     private final MerchantKycRepository kycRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
-
+    private final MerchantMetricsService merchantMetricsService;
     @Override
     public MerchantKycResponse submitKyc(UUID authUserId, SubmitMerchantKycRequest request) {
         Merchant merchant = merchantRepository.findByAuthUserIdAndDeletedFalse(authUserId).orElseThrow(() -> new BusinessValidationException(ErrorCode.MERCHANT_NOT_FOUND));
@@ -79,6 +79,7 @@ public class MerchantKycServiceImpl implements MerchantKycService {
         merchant.setStatusChangedBy(SecurityUtil.getCurrentUserId());
         merchant.setStatusReason("KYC_APPROVED");
         kycRepository.save(kyc);
+        merchantMetricsService.incrementApproved();
         applicationEventPublisher.publishEvent(new MerchantKycApprovedDomainEvent(this, merchant.getId(), merchant.getEmail(), merchant.getBusinessName()));
         log.info("Merchant KYC approved merchantId={}", merchantId);
         return map(kyc);
@@ -101,6 +102,7 @@ public class MerchantKycServiceImpl implements MerchantKycService {
         merchant.setStatusChangedBy(SecurityUtil.getCurrentUserId());
         merchant.setStatusReason("KYC_REJECTED");
         kycRepository.save(kyc);
+        merchantMetricsService.incrementRejected();
         applicationEventPublisher.publishEvent(new MerchantKycRejectedDomainEvent(this, merchant.getId(), merchant.getEmail(), merchant.getBusinessName(), request.reason()));
         log.warn("Merchant KYC rejected merchantId={}", merchantId);
         return map(kyc);

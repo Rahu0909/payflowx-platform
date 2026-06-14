@@ -33,6 +33,7 @@ public class RefundServiceImpl implements RefundService {
     private final RefundMapper refundMapper;
     private final PaymentEventService paymentEventService;
     private final PaymentStateMachineValidator stateMachineValidator;
+    private final PaymentMetricsService paymentMetricsService;
 
     @Override
     @Transactional
@@ -72,6 +73,7 @@ public class RefundServiceImpl implements RefundService {
             payment.setStatus(PaymentStatus.PARTIAL_REFUND);
         }
         paymentRepository.save(payment);
+        paymentMetricsService.incrementRefund();
         /*
          * REFUND EVENT
          */

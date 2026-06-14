@@ -83,6 +83,9 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
          */
         var mutatedRequest = request.mutate().header("X-Auth-UserId", userId).header("X-Auth-Email", email).header("X-Auth-Role", role).header("X-Auth-Jti", jti).header("X-Request-Source", "api-gateway").build();
         var mutatedExchange = exchange.mutate().request(mutatedRequest).build();
+        exchange.getAttributes().put("userId", userId);
+        exchange.getAttributes().put("role", role);
+        exchange.getAttributes().put("claims", claims);
         return chain.filter(mutatedExchange);
     }
 

@@ -126,13 +126,18 @@ spring:
             - Path=/internal/notifications/**
 
 management:
-  endpoint:
-    gateway:
-      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info,prometheus,gateway,metrics
+
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 eureka:
   client:

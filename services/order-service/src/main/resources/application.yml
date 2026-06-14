@@ -8,10 +8,16 @@ spring:
   profiles:
     active: local
 
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -22,10 +28,42 @@ spring:
     hibernate:
       ddl-auto: update
 
+resilience4j:
+  circuitbreaker:
+    instances:
+
+      merchantService:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+
+      rabbitPublisher:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+
+  retry:
+    instances:
+
+      merchantService:
+        maxAttempts: 3
+        waitDuration: 1s
+
+      rabbitPublisher:
+        maxAttempts: 3
+        waitDuration: 2s
+
 eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
   instance:
     prefer-ip-address: true
     hostname: localhost
@@ -34,9 +72,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus,metrics
+
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+  tracing:
+    sampling:
+      probability: 1.0
 
 logging:
   level:
     root: INFO
-    com.payflowx.merchant: DEBUG
+    com.payflowx.order: DEBUG

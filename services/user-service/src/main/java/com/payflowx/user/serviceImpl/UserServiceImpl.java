@@ -34,6 +34,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final UserNotificationPublisher userNotificationPublisher;
+    private final UserMetricsService userMetricsService;
 
     @Override
     public UserResponse getCurrentUser(UUID userId) {
@@ -56,6 +57,7 @@ public class UserServiceImpl implements UserService {
         user.setProfile(profile);
         User savedUser = userRepository.save(user);
         publishUserCreatedEvent(savedUser);
+        userMetricsService.incrementUsersCreated();
         log.info("User created successfully for authUserId={}", authUserId);
     }
 
@@ -155,6 +157,7 @@ public class UserServiceImpl implements UserService {
     private void publishAccountStatusEvent(User user) {
         UserEventType eventType = null;
         if (user.getAccountStatus() == AccountStatus.BLOCKED) {
+            userMetricsService.incrementUsersBlocked();
             eventType = UserEventType.USER_ACCOUNT_BLOCKED;
         }
         if (user.getAccountStatus() == AccountStatus.SUSPENDED) {

@@ -45,6 +45,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtProperties jwtProperties;
     private final UserServiceClient userServiceClient;
     private final AuthEventService authEventService;
+    private final AuthMetricsService authMetricsService;
 
     @Override
     public ApiResponse<UserResponse> register(UserRequest request) {
@@ -54,6 +55,7 @@ public class AuthServiceImpl implements AuthService {
         });
         User user = User.builder().fullName(request.fullName()).email(request.email()).password(passwordEncoder.encode(request.password())).role(Role.USER).build();
         User saved = userRepository.save(user);
+        authMetricsService.incrementRegister();
         authEventService.publishEvent(saved, AuthEventType.USER_REGISTERED, Map.of("userId", saved.getId(), "email", saved.getEmail(), "fullName", saved.getFullName()));
         /*
          * USER SERVICE SYNC
@@ -75,6 +77,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(request.email()).orElseThrow(() -> new BusinessException(AppConstants.INVALID_CREDENTIALS));
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             log.warn("Invalid password attempt email={}", request.email());
+            authMetricsService.incrementLoginFailure();
             throw new BusinessException(AppConstants.INVALID_CREDENTIALS);
         }
         String accessToken = jwtService.generateToken(user);
@@ -87,6 +90,7 @@ public class AuthServiceImpl implements AuthService {
         log.info("Login successful userId={}", user.getId());
         authEventService.publishEvent(user, AuthEventType.LOGIN_SUCCESS, Map.of("userId", user.getId(), "email", user.getEmail()));
         authEventService.publishEvent(user, AuthEventType.SESSION_CREATED, Map.of("userId", user.getId(), "email", user.getEmail()));
+        authMetricsService.incrementLoginSuccess();
         return new ApiResponse<>(AppConstants.SUCCESS, AppConstants.LOGIN_SUCCESS, response, LocalDateTime.now());
     }
 
@@ -111,6 +115,7 @@ public class AuthServiceImpl implements AuthService {
         String newAccessToken = jwtService.generateToken(user);
         String oldRefreshToken = storedToken.getToken();
         String newRefreshToken = rotateRefreshToken(storedToken);
+        authMetricsService.incrementLogout();
         /*
          * UPDATE USER SESSION
          */

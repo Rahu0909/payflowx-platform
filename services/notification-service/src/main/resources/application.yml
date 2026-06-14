@@ -26,13 +26,50 @@ eureka:
     prefer-ip-address: true
     hostname: localhost
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      merchantService:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+
+      webhookDispatcher:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+
+  retry:
+    instances:
+      merchantService:
+        maxAttempts: 3
+        waitDuration: 2s
+
+      webhookDispatcher:
+        maxAttempts: 3
+        waitDuration: 2s
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus,metrics
+
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 logging:
   level:
     root: INFO
-    com.payflowx.settlement: DEBUG
+    com.payflowx.notification: DEBUG

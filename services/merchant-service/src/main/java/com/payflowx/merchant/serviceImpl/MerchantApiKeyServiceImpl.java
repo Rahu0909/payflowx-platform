@@ -96,7 +96,7 @@ public class MerchantApiKeyServiceImpl implements MerchantApiKeyService {
     public ValidateApiKeyResponse validateSecretKey(ValidateApiKeyRequest request) {
         String incomingKey = request.secretKey();
         String prefix = ApiKeyGeneratorUtil.extractKeyPrefix(incomingKey);
-        List<MerchantApiKey> keys = apiKeyRepository.findAll();
+        List<MerchantApiKey> keys = apiKeyRepository.findByKeyPrefix(prefix);
         for (MerchantApiKey key : keys) {
             if (!key.getKeyPrefix().equals(prefix)) {
                 continue;
@@ -137,13 +137,6 @@ public class MerchantApiKeyServiceImpl implements MerchantApiKeyService {
     }
 
     private ApiKeyResponse map(MerchantApiKey key, String secret) {
-        return new ApiKeyResponse(key.getId(),
-                key.getPublicKey(),
-                secret,
-                key.getKeyPrefix(),
-                key.getEnvironment().name(),
-                key.getStatus().name(),
-                key.getCreatedAt(),
-                key.getLastUsedAt());
+        return new ApiKeyResponse(key.getId(), key.getPublicKey(), secret, key.getKeyPrefix(), key.getEnvironment().name(), key.getStatus().name(), key.getCreatedAt(), key.getLastUsedAt());
     }
 }

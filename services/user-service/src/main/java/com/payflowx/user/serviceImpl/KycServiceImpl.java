@@ -30,6 +30,7 @@ public class KycServiceImpl implements KycService {
     private final UserRepository userRepository;
     private final UserMapper mapper;
     private final UserNotificationPublisher userNotificationPublisher;
+    private final UserMetricsService userMetricsService;
 
     @Override
     @Transactional
@@ -48,9 +49,10 @@ public class KycServiceImpl implements KycService {
         kyc.setNationality(request.nationality());
         kyc.setGovernmentId(request.governmentId());
         kyc.setKycStatus(KycStatus.PENDING);
-        kyc.setApprovedAt(LocalDateTime.now());
-        kyc.setApprovedBy(SecurityUtil.getCurrentUserId());
+        kyc.setApprovedAt(null);
+        kyc.setApprovedBy(null);
         kyc.setRejectionReason(null);
+        userMetricsService.incrementKycSubmitted();
         publishKycEvent(user, UserEventType.USER_KYC_SUBMITTED, "KYC submitted successfully");
         log.info("KYC submitted for userId={}", user.getId());
         return mapper.toKycResponse(kyc);
@@ -81,8 +83,8 @@ public class KycServiceImpl implements KycService {
         kyc.setNationality(request.nationality());
         kyc.setGovernmentId(request.governmentId());
         kyc.setKycStatus(KycStatus.PENDING);
-        kyc.setApprovedAt(LocalDateTime.now());
-        kyc.setApprovedBy(SecurityUtil.getCurrentUserId());
+        kyc.setApprovedAt(null);
+        kyc.setApprovedBy(null);
         kyc.setRejectionReason(null);
         publishKycEvent(user, UserEventType.USER_KYC_SUBMITTED, "KYC updated successfully");
         log.info("KYC updated for userId={}", user.getId());
@@ -110,6 +112,7 @@ public class KycServiceImpl implements KycService {
         kyc.setRejectionReason(null);
         user.setVerified(true);
         publishKycEvent(user, UserEventType.USER_KYC_APPROVED, "KYC approved successfully");
+        userMetricsService.incrementKycApproved();
         log.info("KYC approved for userId={}", userId);
     }
 

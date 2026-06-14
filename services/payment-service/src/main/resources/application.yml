@@ -74,6 +74,39 @@ spring:
         jdbc:
           time_zone: UTC
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      orderService:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+      merchantService:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+  retry:
+    instances:
+      orderService:
+        maxAttempts: 3
+        waitDuration: 1s
+
+      merchantService:
+        maxAttempts: 3
+        waitDuration: 1s
+
 eureka:
   client:
     service-url:
@@ -84,26 +117,27 @@ eureka:
     hostname: localhost
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,circuitbreakers,circuitbreakerevents
+
   endpoint:
     health:
       show-details: always
 
-      probes:
-        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
 
 logging:
   level:
     root: INFO
-
     com.payflowx.payment: DEBUG
-
-    org.hibernate.SQL: OFF
-    org.hibernate.orm.jdbc.bind: OFF
 
 payment:
   events:

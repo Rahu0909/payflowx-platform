@@ -49,8 +49,8 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentEventService paymentEventService;
     private final ObjectMapper objectMapper;
     private final PaymentFinancialService paymentFinancialService;
-    private final SettlementClient settlementClient;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final PaymentMetricsService paymentMetricsService;
 
     @Override
     @Transactional
@@ -123,6 +123,7 @@ public class PaymentServiceImpl implements PaymentService {
             paymentEventService.publishEvent(payment, PaymentEventType.PAYMENT_SUCCESS);
             paymentAttemptService.markAttemptSuccess(attempt.getId(), gatewayResponse, processingTime);
             orderValidationService.markOrderPaid(payment.getOrderId());
+            paymentMetricsService.incrementSuccess();
             applicationEventPublisher.publishEvent(new PaymentSuccessSettlementEvent(payment.getId()));
             log.info("Payment successful paymentId={} gatewayReference={}", payment.getId(), payment.getGatewayReference());
         } else {
@@ -134,6 +135,7 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setFailureReason(gatewayResponse.failureReason());
             paymentRepository.save(payment);
             paymentEventService.publishEvent(payment, PaymentEventType.PAYMENT_FAILED);
+            paymentMetricsService.incrementFailure();
             paymentAttemptService.markAttemptFailed(attempt.getId(), gatewayResponse, processingTime);
             log.warn("Payment failed paymentId={} reason={}", payment.getId(), gatewayResponse.failureReason());
         }

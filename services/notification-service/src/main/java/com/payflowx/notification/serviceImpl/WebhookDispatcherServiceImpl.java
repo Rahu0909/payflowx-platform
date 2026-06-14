@@ -5,7 +5,9 @@ import com.payflowx.notification.constant.WebhookRetryConstants;
 import com.payflowx.notification.dto.MerchantWebhookResponse;
 import com.payflowx.notification.entity.NotificationEvent;
 import com.payflowx.notification.entity.WebhookDelivery;
+import com.payflowx.notification.enums.ErrorCode;
 import com.payflowx.notification.enums.WebhookDeliveryStatus;
+import com.payflowx.notification.exception.BusinessValidationException;
 import com.payflowx.notification.exception.NonRetryableNotificationException;
 import com.payflowx.notification.exception.RetryableNotificationException;
 import com.payflowx.notification.repository.WebhookDeliveryRepository;
@@ -13,6 +15,8 @@ import com.payflowx.notification.service.WebhookDispatcherService;
 import com.payflowx.notification.util.HmacSignatureUtil;
 import com.payflowx.notification.util.RetryBackoffUtil;
 import com.payflowx.notification.util.WebhookPayloadBuilder;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -31,19 +35,19 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
     private final WebhookDeliveryRepository webhookDeliveryRepository;
     private final WebhookPayloadBuilder webhookPayloadBuilder;
     private final RestTemplate restTemplate;
-
+    private final NotificationMetricsService notificationMetricsService;
     @Override
     @Transactional
+    @CircuitBreaker(name = "webhookDispatcher", fallbackMethod = "dispatchWebhookFallback")
+    @Retry(name = "webhookDispatcher")
     public void dispatchWebhook(NotificationEvent notificationEvent) {
         log.info("Webhook dispatch started eventId={} correlationId={}", notificationEvent.getEventId(), notificationEvent.getCorrelationId());
-        boolean alreadyDelivered = webhookDeliveryRepository.findAll().stream()
-                .anyMatch(delivery -> delivery.getEventId()
-                        .equals(notificationEvent.getEventId()) && delivery.getStatus() == WebhookDeliveryStatus.SUCCESS);
+        boolean alreadyDelivered = webhookDeliveryRepository.existsByEventIdAndStatus(notificationEvent.getEventId(), WebhookDeliveryStatus.SUCCESS);
         if (alreadyDelivered) {
             log.warn("Webhook already delivered eventId={}", notificationEvent.getEventId());
             return;
         }
-        MerchantWebhookResponse webhookResponse = merchantServiceClient.getMerchantWebhook(notificationEvent.getAggregateId());
+        MerchantWebhookResponse webhookResponse = getMerchantWebhook(notificationEvent.getAggregateId());
         validateWebhookConfiguration(webhookResponse);
         String payload = webhookPayloadBuilder.buildPayload(notificationEvent);
         String signature = HmacSignatureUtil.generateSignature(payload, webhookResponse.getWebhookSecret());
@@ -95,10 +99,15 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
         if (statusCode >= 200 && statusCode < 300) {
             delivery.setStatus(WebhookDeliveryStatus.SUCCESS);
             delivery.setDeliveredAt(LocalDateTime.now());
-            log.info("Webhook delivery successful eventId={} statusCode={}", delivery.getEventId(), statusCode);
+            notificationMetricsService.incrementSent();
+            notificationMetricsService.incrementWebhook();
+            log.info("Webhook delivery successful eventId={} statusCode={}",
+                    delivery.getEventId(),
+                    statusCode);
         } else if (statusCode >= 400 && statusCode < 500) {
             delivery.setStatus(WebhookDeliveryStatus.DEAD_LETTER);
             delivery.setFailureReason("Non retryable client error");
+            notificationMetricsService.incrementFailed();
             log.error("Webhook delivery failed permanently eventId={} statusCode={}", delivery.getEventId(), statusCode);
         } else {
             delivery.setStatus(WebhookDeliveryStatus.RETRYING);
@@ -114,6 +123,7 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
             delivery.setStatus(WebhookDeliveryStatus.DEAD_LETTER);
             delivery.setFailureReason("Maximum retry attempts exceeded");
             webhookDeliveryRepository.save(delivery);
+            notificationMetricsService.incrementFailed();
             log.error("Webhook moved to DLQ eventId={} retryCount={}", delivery.getEventId(), delivery.getRetryCount());
             return;
         }
@@ -124,5 +134,26 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
         delivery.setNextRetryAt(LocalDateTime.now().plusMinutes(retryDelay));
         webhookDeliveryRepository.save(delivery);
         log.error("Webhook delivery retry scheduled eventId={} reason={}", delivery.getEventId(), reason);
+    }
+
+    public void dispatchWebhookFallback(NotificationEvent notificationEvent, Exception ex) {
+        log.error("Webhook dispatch failed permanently eventId={}", notificationEvent.getEventId(), ex);
+        WebhookDelivery delivery = webhookDeliveryRepository.findTopByEventIdOrderByCreatedAtDesc(notificationEvent.getEventId()).orElse(null);
+        if (delivery != null) {
+            delivery.setStatus(WebhookDeliveryStatus.DEAD_LETTER);
+            delivery.setFailureReason("Circuit breaker opened");
+            webhookDeliveryRepository.save(delivery);
+        }
+    }
+
+    @CircuitBreaker(name = "merchantService", fallbackMethod = "merchantWebhookFallback")
+    @Retry(name = "merchantService")
+    public MerchantWebhookResponse getMerchantWebhook(String merchantId) {
+        return merchantServiceClient.getMerchantWebhook(merchantId);
+    }
+
+    public MerchantWebhookResponse merchantWebhookFallback(String merchantId, Exception ex) {
+        log.error("Merchant service unavailable merchantId={}", merchantId, ex);
+        throw new BusinessValidationException(ErrorCode.MERCHANT_SERVICE_UNAVAILABLE, "Merchant service unavailable");
     }
 }

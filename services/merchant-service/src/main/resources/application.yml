@@ -74,6 +74,23 @@ spring:
         jdbc:
           time_zone: UTC
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      rabbitPublisher:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+
+  retry:
+    instances:
+      rabbitPublisher:
+        maxAttempts: 3
+        waitDuration: 2s
+
 eureka:
   client:
     service-url:
@@ -84,23 +101,24 @@ eureka:
     hostname: localhost
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+
   endpoint:
     health:
       show-details: always
 
-      probes:
-        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
 
 logging:
   level:
     root: INFO
-
     com.payflowx.merchant: DEBUG
-
-    org.hibernate.SQL: OFF
-    org.hibernate.orm.jdbc.bind: OFF

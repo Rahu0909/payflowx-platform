@@ -2,22 +2,33 @@ package com.payflowx.notification.serviceImpl;
 
 import com.payflowx.notification.dto.OrderNotificationMessage;
 import com.payflowx.notification.service.OrderNotificationService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class OrderNotificationServiceImpl implements OrderNotificationService {
-
+    private final NotificationMetricsService notificationMetricsService;
     @Override
     public void process(OrderNotificationMessage message) {
-        log.info("Processing order event type={} orderId={}", message.eventType(), message.orderId());
-        switch (message.eventType()) {
-            case "ORDER_CREATED" -> handleOrderCreated(message);
-            case "ORDER_CANCELLED" -> handleOrderCancelled(message);
-            case "ORDER_PAID" -> handleOrderPaid(message);
-            case "ORDER_EXPIRED" -> handleOrderExpired(message);
-            default -> log.warn("Unsupported order eventType={}", message.eventType());
+        try {
+            log.info("Processing order event type={} orderId={}",
+                    message.eventType(),
+                    message.orderId());
+            switch (message.eventType()) {
+                case "ORDER_CREATED" -> handleOrderCreated(message);
+                case "ORDER_CANCELLED" -> handleOrderCancelled(message);
+                case "ORDER_PAID" -> handleOrderPaid(message);
+                case "ORDER_EXPIRED" -> handleOrderExpired(message);
+                default -> log.warn("Unsupported order eventType={}", message.eventType());
+            }
+            notificationMetricsService.incrementSent();
+            notificationMetricsService.incrementEmail();
+        } catch (Exception ex) {
+            notificationMetricsService.incrementFailed();
+            throw ex;
         }
     }
 

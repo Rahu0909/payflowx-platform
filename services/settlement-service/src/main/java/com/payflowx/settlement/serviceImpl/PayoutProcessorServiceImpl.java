@@ -24,6 +24,7 @@ public class PayoutProcessorServiceImpl implements PayoutProcessorService {
     private final SettlementWebhookEventService webhookEventService;
     private final LedgerService ledgerService;
     private final SettlementEventPublisherService settlementEventPublisherService;
+    private final SettlementMetricsService settlementMetricsService;
 
     @Override
     @Transactional
@@ -52,6 +53,7 @@ public class PayoutProcessorServiceImpl implements PayoutProcessorService {
                 payout.setBankReference("bank_" + UUID.randomUUID());
                 payout.setFailureReason(null);
                 ledgerService.recordPayoutEntry(payout.getMerchantId(), payout.getId(), payout.getAmount(), payout.getCurrency());
+                settlementMetricsService.incrementPayoutProcessed();
                 webhookEventService.publishPayoutEvent(payout, SettlementWebhookEventType.PAYOUT_SUCCESS);
                 settlementEventPublisherService.publishPayoutEvent(payout, SettlementWebhookEventType.PAYOUT_SUCCESS);
 

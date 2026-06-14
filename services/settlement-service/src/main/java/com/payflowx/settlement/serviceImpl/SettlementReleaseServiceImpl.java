@@ -25,7 +25,7 @@ public class SettlementReleaseServiceImpl implements SettlementReleaseService {
     private final MerchantBalanceService merchantBalanceService;
     private final SettlementWebhookEventService webhookEventService;
     private final SettlementEventPublisherService settlementEventPublisherService;
-
+    private final SettlementMetricsService settlementMetricsService;
     @Override
     @Transactional
     public void releaseSettlements() {
@@ -46,6 +46,7 @@ public class SettlementReleaseServiceImpl implements SettlementReleaseService {
              */
             settlement.setStatus(SettlementStatus.COMPLETED);
             settlement.setCompletedAt(LocalDateTime.now());
+            settlementMetricsService.incrementSettlementReleased();
             webhookEventService.publishSettlementEvent(settlement, SettlementWebhookEventType.SETTLEMENT_COMPLETED);
             settlementEventPublisherService.publishSettlementEvent(settlement, SettlementWebhookEventType.SETTLEMENT_COMPLETED);
             log.info("Settlement released settlementId={} merchantId={} amount={}", settlement.getId(), settlement.getMerchantId(), settlement.getAmount());

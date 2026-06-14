@@ -13,6 +13,8 @@ import com.payflowx.settlement.exception.BusinessValidationException;
 import com.payflowx.settlement.repository.SettlementRepository;
 import com.payflowx.settlement.service.*;
 import com.payflowx.settlement.util.SettlementReferenceGeneratorUtil;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,9 +33,11 @@ public class SettlementServiceImpl implements SettlementService {
     private final SettlementWebhookEventService webhookEventService;
     private final LedgerService ledgerService;
     private final SettlementEventPublisherService settlementEventPublisherService;
-
+    private final SettlementMetricsService settlementMetricsService;
     @Override
     @Transactional
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "createSettlementFallback")
+    @Retry(name = "paymentService")
     public SettlementResponse createSettlement(UUID paymentId) {
         settlementRepository.findByPaymentId(paymentId).ifPresent(existing -> {
             throw new BusinessValidationException(ErrorCode.DUPLICATE_SETTLEMENT);
@@ -48,6 +52,7 @@ public class SettlementServiceImpl implements SettlementService {
         settlementRepository.save(settlement);
         ledgerService.recordSettlementEntry(settlement.getMerchantId(), settlement.getId(), settlement.getAmount(), settlement.getCurrency());
         webhookEventService.publishSettlementEvent(settlement, SettlementWebhookEventType.SETTLEMENT_CREATED);
+        settlementMetricsService.incrementSettlementCreated();
         settlementEventPublisherService.publishSettlementEvent(settlement, SettlementWebhookEventType.SETTLEMENT_CREATED);
         /*
          * ADD TO PENDING BALANCE
@@ -63,5 +68,10 @@ public class SettlementServiceImpl implements SettlementService {
 
     private LocalDateTime settlementReleaseTime(Integer delayDays) {
         return LocalDateTime.now().plusDays(delayDays);
+    }
+
+    public SettlementResponse createSettlementFallback(UUID paymentId, Exception ex) {
+        log.error("Payment service unavailable. paymentId={}", paymentId, ex);
+        throw new BusinessValidationException(ErrorCode.PAYMENT_SERVICE_UNAVAILABLE);
     }
 }

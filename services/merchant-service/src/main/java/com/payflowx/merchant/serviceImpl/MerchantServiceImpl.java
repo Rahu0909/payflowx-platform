@@ -38,6 +38,7 @@ public class MerchantServiceImpl implements MerchantService {
     private final MerchantSettlementConfigRepository merchantSettlementConfigRepository;
     private final MerchantMapper mapper;
     private final MerchantWebhookRepository merchantWebhookRepository;
+    private final MerchantMetricsService merchantMetricsService;
 
     @Override
     public MerchantResponse createMerchant(UUID authUserId, CreateMerchantRequest request) {
@@ -52,6 +53,7 @@ public class MerchantServiceImpl implements MerchantService {
         Merchant saved = merchantRepository.save(merchant);
         MerchantSettlementConfig config = MerchantSettlementConfig.builder().merchant(saved).platformFeePercentage(BigDecimal.valueOf(2.50)).settlementDelayDays(2).rollingReservePercentage(BigDecimal.valueOf(5.00)).minimumPayoutAmount(BigDecimal.valueOf(100)).settlementEnabled(true).build();
         merchantSettlementConfigRepository.save(config);
+        merchantMetricsService.incrementCreated();
         log.info("Merchant created with id: {}", saved.getId());
         return mapper.toResponse(saved);
     }

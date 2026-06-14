@@ -7,6 +7,8 @@ import com.payflowx.payment.dto.response.InternalMerchantSettlementConfigRespons
 import com.payflowx.payment.dto.response.PaymentFinancialDetails;
 import com.payflowx.payment.exception.BusinessValidationException;
 import com.payflowx.payment.service.PaymentFinancialService;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,9 +25,9 @@ public class PaymentFinancialServiceImpl implements PaymentFinancialService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaymentFinancialDetails calculateFinancials(
-            UUID merchantId,
-            BigDecimal grossAmount) {
+    @CircuitBreaker(name = "merchant-service", fallbackMethod = "calculateFinancialsFallback")
+    @Retry(name = "merchant-service")
+    public PaymentFinancialDetails calculateFinancials(UUID merchantId, BigDecimal grossAmount) {
         ApiResponse<InternalMerchantSettlementConfigResponse> response = merchantClient.getSettlementConfig(merchantId);
         if (response == null || response.data() == null) {
             throw new BusinessValidationException(ErrorCode.MERCHANT_NOT_FOUND);
@@ -40,9 +42,11 @@ public class PaymentFinancialServiceImpl implements PaymentFinancialService {
         return new PaymentFinancialDetails(grossAmount, platformFeeAmount, reserveAmount, netSettlementAmount, config.settlementDelayDays());
     }
 
-    private BigDecimal calculatePercentage(
-            BigDecimal amount,
-            BigDecimal percentage) {
+    private BigDecimal calculatePercentage(BigDecimal amount, BigDecimal percentage) {
         return amount.multiply(percentage).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+    }
+
+    private PaymentFinancialDetails calculateFinancialsFallback(UUID merchantId, BigDecimal grossAmount, Exception ex) {
+        throw new BusinessValidationException(ErrorCode.MERCHANT_SERVICE_UNAVAILABLE);
     }
 }

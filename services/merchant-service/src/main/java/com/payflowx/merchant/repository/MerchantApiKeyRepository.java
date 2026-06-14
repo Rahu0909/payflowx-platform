@@ -7,12 +7,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface MerchantApiKeyRepository
-        extends JpaRepository<MerchantApiKey, UUID> {
+public interface MerchantApiKeyRepository extends JpaRepository<MerchantApiKey, UUID> {
 
     List<MerchantApiKey> findByMerchantIdAndDeletedFalse(UUID merchantId);
 
     Optional<MerchantApiKey> findByPublicKeyAndDeletedFalse(String publicKey);
 
     long countByMerchantIdAndDeletedFalse(UUID merchantId);
+
+    List<MerchantApiKey> findByKeyPrefix(String keyPrefix);
 }

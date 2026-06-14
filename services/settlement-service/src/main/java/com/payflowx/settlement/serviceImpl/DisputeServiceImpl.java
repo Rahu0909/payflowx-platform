@@ -24,6 +24,7 @@ public class DisputeServiceImpl implements DisputeService {
     private final DisputeRepository disputeRepository;
     private final MerchantBalanceService merchantBalanceService;
     private final LedgerService ledgerService;
+    private final SettlementMetricsService settlementMetricsService;
 
     @Override
     @Transactional
@@ -38,6 +39,7 @@ public class DisputeServiceImpl implements DisputeService {
                 dispute.getAmount(),
                 "INR"
         );
+        settlementMetricsService.incrementDisputeCreated();
         log.warn("Dispute created disputeId={} merchantId={} amount={}", dispute.getId(), merchantId, amount);
         return map(dispute);
     }
