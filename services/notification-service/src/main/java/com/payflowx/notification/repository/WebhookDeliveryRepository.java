@@ -16,4 +16,8 @@ public interface WebhookDeliveryRepository extends JpaRepository<WebhookDelivery
     Optional<WebhookDelivery> findTopByEventIdOrderByCreatedAtDesc(String eventId);
 
     boolean existsByEventIdAndStatus(String eventId, WebhookDeliveryStatus status);
+
+    long countByStatus(WebhookDeliveryStatus status);
+
+    long countByStatusAndCreatedAtAfter(WebhookDeliveryStatus status, LocalDateTime from);
 }

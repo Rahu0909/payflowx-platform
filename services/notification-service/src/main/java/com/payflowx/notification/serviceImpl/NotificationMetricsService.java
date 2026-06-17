@@ -12,6 +12,8 @@ public class NotificationMetricsService {
     private final Counter notificationsFailedCounter;
     private final Counter emailNotificationsCounter;
     private final Counter webhookNotificationsCounter;
+    private final Counter webhookRetryCounter;
+    private final Counter webhookDeadLetterCounter;
 
     public void incrementSent() {
         notificationsSentCounter.increment();
@@ -27,5 +29,13 @@ public class NotificationMetricsService {
 
     public void incrementWebhook() {
         webhookNotificationsCounter.increment();
+    }
+
+    public void incrementRetry() {
+        webhookRetryCounter.increment();
+    }
+
+    public void incrementDeadLetter() {
+        webhookDeadLetterCounter.increment();
     }
 }

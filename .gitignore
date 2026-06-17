@@ -52,3 +52,6 @@ application-secret.yml
 # Maven/IntelliJ generated placeholder directories
 ${project.build.directory}/
 **/${project.build.directory}/
+
+# Grafana
+infra/grafana-data/

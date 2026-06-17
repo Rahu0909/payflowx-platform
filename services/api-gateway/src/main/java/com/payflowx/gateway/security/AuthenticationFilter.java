@@ -1,6 +1,7 @@
 package com.payflowx.gateway.security;
 
 import com.payflowx.gateway.constants.AppConstants;
+import com.payflowx.gateway.constants.CorrelationConstants;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,11 +82,20 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         /*
          * FORWARD USER CONTEXT TO MICROSERVICES
          */
-        var mutatedRequest = request.mutate().header("X-Auth-UserId", userId).header("X-Auth-Email", email).header("X-Auth-Role", role).header("X-Auth-Jti", jti).header("X-Request-Source", "api-gateway").build();
+        var mutatedRequest = request.mutate().header("X-Auth-UserId", userId).
+                header("X-Auth-Email", email).
+                header("X-Auth-Role", role).
+                header("X-Auth-Jti", jti).
+                header("X-Request-Source", "api-gateway").
+                header(CorrelationConstants.CORRELATION_ID_HEADER, exchange.getRequest()
+                        .getHeaders().getFirst(CorrelationConstants.CORRELATION_ID_HEADER))
+                .build();
         var mutatedExchange = exchange.mutate().request(mutatedRequest).build();
         exchange.getAttributes().put("userId", userId);
         exchange.getAttributes().put("role", role);
         exchange.getAttributes().put("claims", claims);
+        String correlationId = request.getHeaders().getFirst(CorrelationConstants.CORRELATION_ID_HEADER);
+        log.info("Access granted userId={} role={} path={} correlationId={}", userId, role, path, correlationId);
         return chain.filter(mutatedExchange);
     }
 
@@ -121,6 +131,6 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return Ordered.HIGHEST_PRECEDENCE;
+        return -50;
     }
 }

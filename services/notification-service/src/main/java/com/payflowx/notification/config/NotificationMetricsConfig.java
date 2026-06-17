@@ -35,4 +35,18 @@ public class NotificationMetricsConfig {
                 .description("Total webhook notifications")
                 .register(registry);
     }
+
+    @Bean
+    public Counter webhookRetryCounter(MeterRegistry registry) {
+        return Counter.builder("webhook_retry_total")
+                .description("Webhook retries")
+                .register(registry);
+    }
+
+    @Bean
+    public Counter webhookDeadLetterCounter(MeterRegistry registry) {
+        return Counter.builder("webhook_dead_letter_total")
+                .description("Webhook dead letter events")
+                .register(registry);
+    }
 }

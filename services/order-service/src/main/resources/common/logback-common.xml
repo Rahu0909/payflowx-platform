@@ -9,11 +9,11 @@
 
     <!-- Console Pattern -->
     <property name="CONSOLE_PATTERN"
-              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{traceId:-}] [%X{spanId:-}] [%logger{36}] [%property{APP_NAME}] - %msg%n"/>
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [traceId=%X{traceId:-}] [spanId=%X{spanId:-}] [correlationId=%X{correlationId:-}] [%logger{36}] [%property{APP_NAME}] - %msg%n"/>
 
     <!-- File Pattern -->
     <property name="FILE_PATTERN"
-              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{traceId:-}] [%X{spanId:-}] [%logger{36}] [%property{APP_NAME}] - %msg%n"/>
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [traceId=%X{traceId:-}] [spanId=%X{spanId:-}] [correlationId=%X{correlationId:-}] [%logger{36}] [%property{APP_NAME}] - %msg%n"/>
 
     <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">

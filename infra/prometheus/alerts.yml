@@ -1,0 +1,11 @@
+groups:
+  - name: notification-alerts
+    rules:
+      - alert: NotificationDLQGrowing
+        expr: notification_dead_letter_current > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Notification DLQ contains messages"
+          description: "Dead letter queue size is {{ $value }}"

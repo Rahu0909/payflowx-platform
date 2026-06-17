@@ -108,6 +108,7 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
             delivery.setStatus(WebhookDeliveryStatus.DEAD_LETTER);
             delivery.setFailureReason("Non retryable client error");
             notificationMetricsService.incrementFailed();
+            notificationMetricsService.incrementDeadLetter();
             log.error("Webhook delivery failed permanently eventId={} statusCode={}", delivery.getEventId(), statusCode);
         } else {
             delivery.setStatus(WebhookDeliveryStatus.RETRYING);
@@ -124,11 +125,13 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
             delivery.setFailureReason("Maximum retry attempts exceeded");
             webhookDeliveryRepository.save(delivery);
             notificationMetricsService.incrementFailed();
+            notificationMetricsService.incrementDeadLetter();
             log.error("Webhook moved to DLQ eventId={} retryCount={}", delivery.getEventId(), delivery.getRetryCount());
             return;
         }
         delivery.setStatus(WebhookDeliveryStatus.RETRYING);
         delivery.setFailureReason(reason);
+        notificationMetricsService.incrementRetry();
         delivery.setRetryCount(delivery.getRetryCount() + 1);
         long retryDelay = RetryBackoffUtil.calculateDelayMinutes(delivery.getRetryCount());
         delivery.setNextRetryAt(LocalDateTime.now().plusMinutes(retryDelay));
@@ -142,6 +145,7 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
         if (delivery != null) {
             delivery.setStatus(WebhookDeliveryStatus.DEAD_LETTER);
             delivery.setFailureReason("Circuit breaker opened");
+            notificationMetricsService.incrementDeadLetter();
             webhookDeliveryRepository.save(delivery);
         }
     }
