@@ -52,4 +52,7 @@ public class PaymentEvent extends BaseEntity {
 
     @Column(name = "next_retry_at")
     private LocalDateTime nextRetryAt;
+
+    @Column(nullable = false)
+    private String correlationId;
 }

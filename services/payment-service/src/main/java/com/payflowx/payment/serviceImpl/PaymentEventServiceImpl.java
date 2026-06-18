@@ -8,6 +8,7 @@ import com.payflowx.payment.repository.PaymentEventRepository;
 import com.payflowx.payment.service.PaymentEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -30,6 +31,7 @@ public class PaymentEventServiceImpl implements PaymentEventService {
                     "currency", payment.getCurrency(), "status", payment.getStatus(),
                     "eventType", eventType.name());
             PaymentEvent event = PaymentEvent.builder().paymentId(payment.getId()).merchantId(payment.getMerchantId())
+                    .correlationId(MDC.get("CorrelationId"))
                     .eventType(eventType).payload(objectMapper.writeValueAsString(payload)).build();
             paymentEventRepository.save(event);
             log.info("Payment event published paymentId={} eventType={}", payment.getId(), eventType);

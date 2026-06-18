@@ -9,6 +9,7 @@ import com.payflowx.settlement.enums.SettlementWebhookEventType;
 import com.payflowx.settlement.service.SettlementEventPublisherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ public class SettlementEventPublisherServiceImpl implements SettlementEventPubli
                 props.setContentEncoding("UTF-8");
                 props.setMessageId(settlement.getId().toString());
                 props.setHeader("X-PAYFLOWX-EVENT-ID", settlement.getId().toString());
-                props.setHeader("X-PAYFLOWX-CORRELATION-ID", settlement.getSettlementReference());
+                props.setHeader("X-PAYFLOWX-CORRELATION-ID", MDC.get("correlationId"));
                 props.setHeader("X-PAYFLOWX-MERCHANT-ID", settlement.getMerchantId().toString());
                 props.setHeader("X-PAYFLOWX-EVENT-TYPE", eventType.name());
                 props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", "settlement-service");

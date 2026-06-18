@@ -7,6 +7,7 @@ import com.payflowx.auth.enums.AuthEventType;
 import com.payflowx.auth.repository.AuthEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -30,9 +31,16 @@ public class AuthEventProcessor {
             try {
                 String routingKey = resolveRoutingKey(event.getEventType());
                 AuthNotificationMessage message = new AuthNotificationMessage(event.getId(), event.getEventType().name(), "auth-service", objectMapper.readValue(event.getPayload(), Map.class));
-                rabbitTemplate.convertAndSend(AuthNotificationRabbitMqConstants.NOTIFICATION_EXCHANGE, routingKey, message);
+                rabbitTemplate.convertAndSend(AuthNotificationRabbitMqConstants.NOTIFICATION_EXCHANGE, routingKey, message, rabbitMessage -> {
+                    MessageProperties props = rabbitMessage.getMessageProperties();
+                    props.setMessageId(event.getId().toString());
+                    props.setHeader("X-PAYFLOWX-EVENT-ID", event.getId().toString());
+                    props.setHeader("X-PAYFLOWX-CORRELATION-ID", event.getCorrelationId());
+                    props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", "auth-service");
+                    return rabbitMessage;
+                });
                 event.setProcessed(true);
-                log.info("Published auth event eventId={} type={}", event.getId(), event.getEventType());
+                log.info("Published auth event eventId={} type={} correlationId={}", event.getId(), event.getEventType(), event.getCorrelationId());
             } catch (Exception ex) {
                 log.error("Failed publishing auth event eventId={}", event.getId(), ex);
             }

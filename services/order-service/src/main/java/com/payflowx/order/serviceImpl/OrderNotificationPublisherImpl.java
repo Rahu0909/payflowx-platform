@@ -7,6 +7,7 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,10 @@ public class OrderNotificationPublisherImpl implements OrderNotificationPublishe
             log.error("Unsupported order eventType={}", event.getEventType());
             return;
         }
-        rabbitTemplate.convertAndSend(NOTIFICATION_EXCHANGE, routingKey, event);
+        rabbitTemplate.convertAndSend(NOTIFICATION_EXCHANGE, routingKey, event, message -> {
+            message.getMessageProperties().setHeader("X-PAYFLOWX-CORRELATION-ID", MDC.get("correlationId"));
+            return message;
+        });
         log.info("Order notification event published eventType={} orderId={}", event.getEventType(), event.getOrderId());
     }
 

@@ -7,6 +7,7 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,7 @@ public class MerchantEventPublisherServiceImpl implements MerchantEventPublisher
         props.setContentType(MessageProperties.CONTENT_TYPE_JSON);
         props.setMessageId(eventId.toString());
         props.setHeader("X-PAYFLOWX-EVENT-ID", eventId.toString());
-        props.setHeader("X-PAYFLOWX-CORRELATION-ID", merchantId.toString());
+        props.setHeader("X-PAYFLOWX-CORRELATION-ID", MDC.get("correlationId"));
         props.setHeader("X-PAYFLOWX-MERCHANT-ID", merchantId.toString());
         props.setHeader("X-PAYFLOWX-EVENT-TYPE", eventType);
         props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", "merchant-service");

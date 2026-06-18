@@ -40,9 +40,9 @@ public class PaymentEventProcessor {
                     props.setContentType(MessageProperties.CONTENT_TYPE_JSON);
                     props.setContentEncoding("UTF-8");
                     props.setMessageId(event.getId().toString());
-                    props.setCorrelationId(event.getPaymentId().toString());
+                    props.setCorrelationId(event.getCorrelationId());
                     props.setHeader("X-PAYFLOWX-EVENT-ID", event.getId().toString());
-                    props.setHeader("X-PAYFLOWX-CORRELATION-ID", event.getPaymentId().toString());
+                    props.setHeader("X-PAYFLOWX-CORRELATION-ID", event.getCorrelationId());
                     props.setHeader("X-PAYFLOWX-MERCHANT-ID", event.getMerchantId().toString());
                     props.setHeader("X-PAYFLOWX-EVENT-TYPE", event.getEventType().name());
                     props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", PaymentNotificationRabbitMqConstants.SOURCE_SERVICE);

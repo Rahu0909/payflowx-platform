@@ -9,6 +9,7 @@ import com.payflowx.auth.repository.AuthEventRepository;
 import com.payflowx.auth.service.AuthEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -17,11 +18,12 @@ import org.springframework.stereotype.Service;
 public class AuthEventServiceImpl implements AuthEventService {
     private final AuthEventRepository authEventRepository;
     private final ObjectMapper objectMapper;
+
     @Override
     public void publishEvent(User user, AuthEventType eventType, Object payload) {
         try {
             String jsonPayload = objectMapper.writeValueAsString(payload);
-            AuthEvent authEvent = AuthEvent.builder().userId(user.getId()).eventType(eventType).payload(jsonPayload).build();
+            AuthEvent authEvent = AuthEvent.builder().userId(user.getId()).eventType(eventType).payload(jsonPayload).correlationId(MDC.get("correlationId")).build();
             authEventRepository.save(authEvent);
             log.info("Auth event stored userId={} eventType={}", user.getId(), eventType);
         } catch (JsonProcessingException ex) {

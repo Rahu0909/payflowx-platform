@@ -51,4 +51,7 @@ public class AuthEvent {
     public void prePersist() {
         createdAt = LocalDateTime.now();
     }
+
+    @Column(nullable = false)
+    private String correlationId;
 }

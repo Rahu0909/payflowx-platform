@@ -36,6 +36,7 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
     private final WebhookPayloadBuilder webhookPayloadBuilder;
     private final RestTemplate restTemplate;
     private final NotificationMetricsService notificationMetricsService;
+
     @Override
     @Transactional
     @CircuitBreaker(name = "webhookDispatcher", fallbackMethod = "dispatchWebhookFallback")
@@ -58,6 +59,7 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
             headers.add("X-PAYFLOWX-SIGNATURE", signature);
             headers.add("X-PAYFLOWX-EVENT", notificationEvent.getEventType().name());
             headers.add("X-PAYFLOWX-EVENT-ID", notificationEvent.getEventId());
+            headers.add("X-PAYFLOWX-CORRELATION-ID", notificationEvent.getCorrelationId());
             HttpEntity<String> request = new HttpEntity<>(payload, headers);
             ResponseEntity<String> response = restTemplate.exchange(webhookResponse.getWebhookUrl(), HttpMethod.POST, request, String.class);
             handleSuccessResponse(delivery, response);
@@ -101,9 +103,7 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
             delivery.setDeliveredAt(LocalDateTime.now());
             notificationMetricsService.incrementSent();
             notificationMetricsService.incrementWebhook();
-            log.info("Webhook delivery successful eventId={} statusCode={}",
-                    delivery.getEventId(),
-                    statusCode);
+            log.info("Webhook delivery successful eventId={} statusCode={}", delivery.getEventId(), statusCode);
         } else if (statusCode >= 400 && statusCode < 500) {
             delivery.setStatus(WebhookDeliveryStatus.DEAD_LETTER);
             delivery.setFailureReason("Non retryable client error");

@@ -5,19 +5,27 @@ import com.payflowx.notification.dto.AuthNotificationMessage;
 import com.payflowx.notification.service.AuthNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class AuthNotificationConsumer {
-
     private final AuthNotificationService authNotificationService;
 
     @RabbitListener(queues = RabbitMqConfig.AUTH_NOTIFICATION_QUEUE)
-    public void consume(AuthNotificationMessage message) {
-        log.info("Received auth event type={} eventId={}", message.eventType(), message.eventId());
-        authNotificationService.process(message);
+    public void consume(AuthNotificationMessage message, @Header(name = "X-PAYFLOWX-CORRELATION-ID", required = false) String correlationId) {
+        try {
+            if (correlationId != null) {
+                MDC.put("correlationId", correlationId);
+            }
+            log.info("Received auth event type={} eventId={}", message.eventType(), message.eventId());
+            authNotificationService.process(message);
+        } finally {
+            MDC.clear();
+        }
     }
 }
