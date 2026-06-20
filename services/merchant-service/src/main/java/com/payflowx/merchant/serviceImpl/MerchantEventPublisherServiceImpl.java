@@ -1,6 +1,8 @@
 package com.payflowx.merchant.serviceImpl;
 
+import com.payflowx.merchant.config.AuditRabbitMqConstants;
 import com.payflowx.merchant.config.RabbitMqConstants;
+import com.payflowx.merchant.dto.AuditEventMessage;
 import com.payflowx.merchant.exception.RabbitMqPublisherException;
 import com.payflowx.merchant.service.MerchantEventPublisher;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -33,26 +35,34 @@ public class MerchantEventPublisherServiceImpl implements MerchantEventPublisher
 
     @Retry(name = "rabbitPublisher", fallbackMethod = "publishEventFallback")
     @CircuitBreaker(name = "rabbitPublisher", fallbackMethod = "publishEventFallback")
-    private void publishEvent(UUID merchantId, String eventType, String routingKey, Map<String, Object> payload){
-    UUID eventId = UUID.randomUUID();
-        rabbitTemplate.convertAndSend(RabbitMqConstants.NOTIFICATION_EXCHANGE,routingKey,payload,message ->
+    private void publishEvent(UUID merchantId, String eventType, String routingKey, Map<String, Object> payload) {
+        UUID eventId = UUID.randomUUID();
+        rabbitTemplate.convertAndSend(RabbitMqConstants.NOTIFICATION_EXCHANGE, routingKey, payload, message ->
 
-    {
-        MessageProperties props = message.getMessageProperties();
-        props.setContentType(MessageProperties.CONTENT_TYPE_JSON);
-        props.setMessageId(eventId.toString());
-        props.setHeader("X-PAYFLOWX-EVENT-ID", eventId.toString());
-        props.setHeader("X-PAYFLOWX-CORRELATION-ID", MDC.get("correlationId"));
-        props.setHeader("X-PAYFLOWX-MERCHANT-ID", merchantId.toString());
-        props.setHeader("X-PAYFLOWX-EVENT-TYPE", eventType);
-        props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", "merchant-service");
-        return message;
-    });
-        log.info("Merchant event published merchantId={} eventType={}",merchantId,eventType);
-}
+        {
+            MessageProperties props = message.getMessageProperties();
+            props.setContentType(MessageProperties.CONTENT_TYPE_JSON);
+            props.setMessageId(eventId.toString());
+            props.setHeader("X-PAYFLOWX-EVENT-ID", eventId.toString());
+            props.setHeader("X-PAYFLOWX-CORRELATION-ID", MDC.get("correlationId"));
+            props.setHeader("X-PAYFLOWX-MERCHANT-ID", merchantId.toString());
+            props.setHeader("X-PAYFLOWX-EVENT-TYPE", eventType);
+            props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", "merchant-service");
+            return message;
+        });
+        String correlationId = MDC.get("correlationId");
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = "CORR-" + merchantId;
+        }
+        AuditEventMessage auditEvent = new AuditEventMessage(eventId.toString(), correlationId, merchantId.toString(),
+                "merchant-service", eventType, payload);
+        rabbitTemplate.convertAndSend(AuditRabbitMqConstants.AUDIT_EXCHANGE,
+                AuditRabbitMqConstants.MERCHANT_AUDIT_ROUTING_KEY, auditEvent);
+        log.info("Merchant event published merchantId={} eventType={}", merchantId, eventType);
+    }
 
-private void publishEventFallback(UUID merchantId, String eventType, String routingKey, Map<String, Object> payload, Exception ex) {
-    log.error("Failed to publish merchant event merchantId={} eventType={}", merchantId, eventType, ex);
-    throw new RabbitMqPublisherException("Unable to publish merchant event", ex);
-}
+    private void publishEventFallback(UUID merchantId, String eventType, String routingKey, Map<String, Object> payload, Exception ex) {
+        log.error("Failed to publish merchant event merchantId={} eventType={}", merchantId, eventType, ex);
+        throw new RabbitMqPublisherException("Unable to publish merchant event", ex);
+    }
 }

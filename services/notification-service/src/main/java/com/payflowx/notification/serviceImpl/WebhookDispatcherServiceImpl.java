@@ -1,7 +1,9 @@
 package com.payflowx.notification.serviceImpl;
 
 import com.payflowx.notification.client.MerchantServiceClient;
+import com.payflowx.notification.config.AuditRabbitMqConstants;
 import com.payflowx.notification.constant.WebhookRetryConstants;
+import com.payflowx.notification.dto.AuditEventMessage;
 import com.payflowx.notification.dto.MerchantWebhookResponse;
 import com.payflowx.notification.entity.NotificationEvent;
 import com.payflowx.notification.entity.WebhookDelivery;
@@ -19,6 +21,7 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +39,7 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
     private final WebhookPayloadBuilder webhookPayloadBuilder;
     private final RestTemplate restTemplate;
     private final NotificationMetricsService notificationMetricsService;
+    private final RabbitTemplate rabbitTemplate;
 
     @Override
     @Transactional
@@ -103,6 +107,13 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
             delivery.setDeliveredAt(LocalDateTime.now());
             notificationMetricsService.incrementSent();
             notificationMetricsService.incrementWebhook();
+            publishAuditEvent(
+                    delivery.getEventId(),
+                    delivery.getCorrelationId(),
+                    delivery.getMerchantId(),
+                    "WEBHOOK_DELIVERED",
+                    delivery
+            );
             log.info("Webhook delivery successful eventId={} statusCode={}", delivery.getEventId(), statusCode);
         } else if (statusCode >= 400 && statusCode < 500) {
             delivery.setStatus(WebhookDeliveryStatus.DEAD_LETTER);
@@ -126,6 +137,13 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
             webhookDeliveryRepository.save(delivery);
             notificationMetricsService.incrementFailed();
             notificationMetricsService.incrementDeadLetter();
+            publishAuditEvent(
+                    delivery.getEventId(),
+                    delivery.getCorrelationId(),
+                    delivery.getMerchantId(),
+                    "WEBHOOK_DEAD_LETTER",
+                    delivery
+            );
             log.error("Webhook moved to DLQ eventId={} retryCount={}", delivery.getEventId(), delivery.getRetryCount());
             return;
         }
@@ -135,6 +153,13 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
         delivery.setRetryCount(delivery.getRetryCount() + 1);
         long retryDelay = RetryBackoffUtil.calculateDelayMinutes(delivery.getRetryCount());
         delivery.setNextRetryAt(LocalDateTime.now().plusMinutes(retryDelay));
+        publishAuditEvent(
+                delivery.getEventId(),
+                delivery.getCorrelationId(),
+                delivery.getMerchantId(),
+                "WEBHOOK_RETRY_SCHEDULED",
+                delivery
+        );
         webhookDeliveryRepository.save(delivery);
         log.error("Webhook delivery retry scheduled eventId={} reason={}", delivery.getEventId(), reason);
     }
@@ -148,6 +173,15 @@ public class WebhookDispatcherServiceImpl implements WebhookDispatcherService {
             notificationMetricsService.incrementDeadLetter();
             webhookDeliveryRepository.save(delivery);
         }
+    }
+
+    private void publishAuditEvent(String eventId, String correlationId,
+                                   String aggregateId, String eventType,
+                                   Object payload) {
+        AuditEventMessage auditEvent = new AuditEventMessage(eventId, correlationId,
+                aggregateId, "notification-service", eventType, payload);
+        rabbitTemplate.convertAndSend(AuditRabbitMqConstants.AUDIT_EXCHANGE,
+                AuditRabbitMqConstants.NOTIFICATION_AUDIT_ROUTING_KEY, auditEvent);
     }
 
     @CircuitBreaker(name = "merchantService", fallbackMethod = "merchantWebhookFallback")

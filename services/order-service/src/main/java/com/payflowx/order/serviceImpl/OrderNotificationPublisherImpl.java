@@ -1,5 +1,7 @@
 package com.payflowx.order.serviceImpl;
 
+import com.payflowx.order.config.AuditRabbitMqConstants;
+import com.payflowx.order.dto.AuditEventMessage;
 import com.payflowx.order.dto.event.OrderNotificationEvent;
 import com.payflowx.order.exception.NotificationPublishException;
 import com.payflowx.order.service.OrderNotificationPublisher;
@@ -34,6 +36,26 @@ public class OrderNotificationPublisherImpl implements OrderNotificationPublishe
             message.getMessageProperties().setHeader("X-PAYFLOWX-CORRELATION-ID", MDC.get("correlationId"));
             return message;
         });
+        String correlationId = MDC.get("correlationId");
+
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = "CORR-" + event.getOrderId();
+        }
+
+        AuditEventMessage auditEvent =
+                new AuditEventMessage(
+                        java.util.UUID.randomUUID().toString(),
+                        correlationId,
+                        event.getOrderId().toString(),
+                        "order-service",
+                        event.getEventType(),
+                        event
+                );
+        rabbitTemplate.convertAndSend(
+                AuditRabbitMqConstants.AUDIT_EXCHANGE,
+                AuditRabbitMqConstants.ORDER_AUDIT_ROUTING_KEY,
+                auditEvent
+        );
         log.info("Order notification event published eventType={} orderId={}", event.getEventType(), event.getOrderId());
     }
 

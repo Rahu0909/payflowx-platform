@@ -1,10 +1,13 @@
 package com.payflowx.payment.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.payflowx.payment.dto.AuditEventMessage;
 import com.payflowx.payment.entity.PaymentEvent;
 import com.payflowx.payment.enums.PaymentEventType;
 import com.payflowx.payment.repository.PaymentEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -20,7 +24,7 @@ public class PaymentEventProcessor {
     private static final int MAX_RETRY_COUNT = 5;
     private final PaymentEventRepository paymentEventRepository;
     private final RabbitTemplate rabbitTemplate;
-
+    private final ObjectMapper objectMapper;
     @Scheduled(fixedDelay = 30000)
     public void processEvents() {
         LocalDateTime now = LocalDateTime.now();
@@ -35,7 +39,17 @@ public class PaymentEventProcessor {
             }
             try {
                 String routingKey = resolveRoutingKey(event.getEventType());
-                rabbitTemplate.convertAndSend(PaymentNotificationRabbitMqConstants.NOTIFICATION_EXCHANGE, routingKey, event.getPayload(), message -> {
+                Map<String, Object> payload =
+                        objectMapper.readValue(
+                                event.getPayload(),
+                                new TypeReference<Map<String, Object>>() {}
+                        );
+
+                rabbitTemplate.convertAndSend(
+                        PaymentNotificationRabbitMqConstants.NOTIFICATION_EXCHANGE,
+                        routingKey,
+                        payload,
+                        message -> {
                     MessageProperties props = message.getMessageProperties();
                     props.setContentType(MessageProperties.CONTENT_TYPE_JSON);
                     props.setContentEncoding("UTF-8");
@@ -48,6 +62,19 @@ public class PaymentEventProcessor {
                     props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", PaymentNotificationRabbitMqConstants.SOURCE_SERVICE);
                     return message;
                 });
+                AuditEventMessage auditEvent = new AuditEventMessage(
+                        event.getId().toString(),
+                        event.getCorrelationId(),
+                        event.getPaymentId().toString(),
+                        "payment-service",
+                        event.getEventType().name(),
+                        payload
+                );
+                rabbitTemplate.convertAndSend(
+                        AuditRabbitMqConstants.AUDIT_EXCHANGE,
+                        AuditRabbitMqConstants.PAYMENT_AUDIT_ROUTING_KEY,
+                        auditEvent
+                );
                 event.setProcessed(true);
                 event.setProcessedAt(now);
                 event.setNextRetryAt(null);

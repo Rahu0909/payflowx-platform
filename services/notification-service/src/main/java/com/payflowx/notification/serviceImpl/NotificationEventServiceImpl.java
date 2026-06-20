@@ -2,6 +2,8 @@ package com.payflowx.notification.serviceImpl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.payflowx.notification.config.AuditRabbitMqConstants;
+import com.payflowx.notification.dto.AuditEventMessage;
 import com.payflowx.notification.dto.MerchantNotificationMessage;
 import com.payflowx.notification.dto.PaymentNotificationMessage;
 import com.payflowx.notification.dto.TreasuryNotificationMessage;
@@ -16,6 +18,7 @@ import com.payflowx.notification.service.NotificationEventService;
 import com.payflowx.notification.service.WebhookDispatcherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,7 @@ public class NotificationEventServiceImpl implements NotificationEventService {
     private final NotificationEventRepository notificationEventRepository;
     private final WebhookDispatcherService webhookDispatcherService;
     private final ObjectMapper objectMapper;
+    private final RabbitTemplate rabbitTemplate;
 
     @Override
     @Transactional
@@ -51,9 +55,20 @@ public class NotificationEventServiceImpl implements NotificationEventService {
         notificationEvent.setStatus(NotificationStatus.PENDING);
         notificationEvent.setPayload(objectMapper.writeValueAsString(message.payload()));
         notificationEventRepository.save(notificationEvent);
+        publishAuditEvent(
+                notificationEvent.getEventId(),
+                notificationEvent.getCorrelationId(),
+                notificationEvent.getAggregateId(),
+                "NOTIFICATION_RECEIVED",
+                message
+        );
         log.info("Payment notification persisted eventId={} merchantId={} eventType={}", message.eventId(), message.merchantId(), eventType);
         if (shouldDispatchWebhook(eventType)) {
-            webhookDispatcherService.dispatchWebhook(notificationEvent);
+            try {
+                webhookDispatcherService.dispatchWebhook(notificationEvent);
+            } catch (Exception ex) {
+                log.error("Webhook dispatch failed eventId={}", notificationEvent.getEventId(), ex);
+            }
         }
     }
 
@@ -80,14 +95,27 @@ public class NotificationEventServiceImpl implements NotificationEventService {
         notificationEvent.setStatus(NotificationStatus.PENDING);
         notificationEvent.setPayload(objectMapper.writeValueAsString(message.payload()));
         notificationEventRepository.save(notificationEvent);
+        publishAuditEvent(
+                notificationEvent.getEventId(),
+                notificationEvent.getCorrelationId(),
+                notificationEvent.getAggregateId(),
+                "NOTIFICATION_RECEIVED",
+                message
+        );
         log.info("Treasury notification persisted eventId={} merchantId={} eventType={}", message.eventId(), message.merchantId(), eventType);
         if (shouldDispatchTreasuryWebhook(eventType)) {
-            webhookDispatcherService.dispatchWebhook(notificationEvent);
+            try {
+                webhookDispatcherService.dispatchWebhook(notificationEvent);
+            } catch (Exception ex) {
+                log.error("Treasury webhook dispatch failed eventId={}", notificationEvent.getEventId(), ex);
+            }
         }
     }
 
     private boolean shouldDispatchTreasuryWebhook(NotificationEventType eventType) {
-        return eventType == NotificationEventType.SETTLEMENT_COMPLETED || eventType == NotificationEventType.PAYOUT_SUCCESS || eventType == NotificationEventType.PAYOUT_FAILED;
+        return eventType == NotificationEventType.SETTLEMENT_COMPLETED
+                || eventType == NotificationEventType.PAYOUT_SUCCESS ||
+                eventType == NotificationEventType.PAYOUT_FAILED;
     }
 
     @Override
@@ -109,7 +137,26 @@ public class NotificationEventServiceImpl implements NotificationEventService {
         notificationEvent.setStatus(NotificationStatus.PENDING);
         notificationEvent.setPayload(objectMapper.writeValueAsString(message.payload()));
         notificationEventRepository.save(notificationEvent);
+        publishAuditEvent(
+                notificationEvent.getEventId(),
+                notificationEvent.getCorrelationId(),
+                notificationEvent.getAggregateId(),
+                "NOTIFICATION_RECEIVED",
+                message
+        );
         log.info("Merchant notification persisted eventId={} merchantId={} eventType={}", message.eventId(), message.merchantId(), eventType);
-        webhookDispatcherService.dispatchWebhook(notificationEvent);
+        try {
+            webhookDispatcherService.dispatchWebhook(notificationEvent);
+        } catch (Exception ex) {
+            log.error("Merchant webhook dispatch failed eventId={}", notificationEvent.getEventId(), ex);
+
+        }
+    }
+
+    private void publishAuditEvent(String eventId, String correlationId, String aggregateId, String eventType, Object payload) {
+        AuditEventMessage auditEvent = new AuditEventMessage(eventId, correlationId,
+                aggregateId, "notification-service", eventType, payload);
+        rabbitTemplate.convertAndSend(AuditRabbitMqConstants.AUDIT_EXCHANGE,
+                AuditRabbitMqConstants.NOTIFICATION_AUDIT_ROUTING_KEY, auditEvent);
     }
 }

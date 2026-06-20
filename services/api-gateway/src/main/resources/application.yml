@@ -126,6 +126,17 @@ spring:
           uri: lb://notification-service
           predicates:
             - Path=/internal/notifications/**
+        # ===============================
+        # Audit Service Routes
+        # ===============================
+        - id: audit-service
+          uri: lb://audit-service
+          predicates:
+            - Path=/audits/**
+        - id: audit-service-admin
+          uri: lb://audit-service
+          predicates:
+            - Path=/admin/audits/**
 
 management:
   endpoints:

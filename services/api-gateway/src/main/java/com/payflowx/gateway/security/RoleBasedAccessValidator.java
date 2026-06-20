@@ -17,7 +17,8 @@ public class RoleBasedAccessValidator {
             "/orders", Set.of(AppConstants.USER, AppConstants.ADMIN),
             "/payments", Set.of(AppConstants.USER, AppConstants.ADMIN),
             "/settlements", Set.of(AppConstants.USER, AppConstants.ADMIN),
-            "/notifications", Set.of(AppConstants.USER, AppConstants.ADMIN)
+            "/notifications", Set.of(AppConstants.USER, AppConstants.ADMIN),
+            "/admin/audits/**", Set.of(AppConstants.ADMIN)
     );
 
     public boolean hasAccess(String path, String role) {

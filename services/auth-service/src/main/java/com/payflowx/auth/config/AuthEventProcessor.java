@@ -1,6 +1,7 @@
 package com.payflowx.auth.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.payflowx.auth.dto.AuditEventMessage;
 import com.payflowx.auth.dto.AuthNotificationMessage;
 import com.payflowx.auth.entity.AuthEvent;
 import com.payflowx.auth.enums.AuthEventType;
@@ -39,6 +40,23 @@ public class AuthEventProcessor {
                     props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", "auth-service");
                     return rabbitMessage;
                 });
+                AuditEventMessage auditEvent =
+                        new AuditEventMessage(
+                                event.getId().toString(),
+                                event.getCorrelationId(),
+                                event.getUserId().toString(),
+                                "auth-service",
+                                event.getEventType().name(),
+                                objectMapper.readValue(
+                                        event.getPayload(),
+                                        Map.class
+                                )
+                        );
+                rabbitTemplate.convertAndSend(
+                        AuditRabbitMqConstants.AUDIT_EXCHANGE,
+                        AuditRabbitMqConstants.AUTH_AUDIT_ROUTING_KEY,
+                        auditEvent
+                );
                 event.setProcessed(true);
                 log.info("Published auth event eventId={} type={} correlationId={}", event.getId(), event.getEventType(), event.getCorrelationId());
             } catch (Exception ex) {

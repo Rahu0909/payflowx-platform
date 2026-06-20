@@ -1,5 +1,7 @@
 package com.payflowx.user.serviceImpl;
 
+import com.payflowx.user.config.AuditRabbitMqConstants;
+import com.payflowx.user.dto.AuditEventMessage;
 import com.payflowx.user.dto.event.UserNotificationEvent;
 import com.payflowx.user.service.UserNotificationPublisher;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,24 @@ public class UserNotificationPublisherImpl implements UserNotificationPublisher 
             message.getMessageProperties().setHeader("X-PAYFLOWX-CORRELATION-ID", MDC.get("correlationId"));
             return message;
         });
+        String correlationId = MDC.get("correlationId");
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = "CORR-" + event.getUserId();
+        }
+        AuditEventMessage auditEvent =
+                new AuditEventMessage(
+                        java.util.UUID.randomUUID().toString(),
+                        correlationId,
+                        event.getUserId().toString(),
+                        "user-service",
+                        event.getEventType(),
+                        event
+                );
+        rabbitTemplate.convertAndSend(
+                AuditRabbitMqConstants.AUDIT_EXCHANGE,
+                AuditRabbitMqConstants.USER_AUDIT_ROUTING_KEY,
+                auditEvent
+        );
         log.info("User notification event published eventType={} userId={}", event.getEventType(), event.getUserId());
     }
 }

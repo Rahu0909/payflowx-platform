@@ -1,4 +1,4 @@
-package com.payflowx.auth.dto;
+package com.payflowx.audit.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;

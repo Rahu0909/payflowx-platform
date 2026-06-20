@@ -2,7 +2,9 @@ package com.payflowx.settlement.serviceImpl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.payflowx.settlement.config.AuditRabbitMqConstants;
 import com.payflowx.settlement.config.SettlementRabbitMqConstants;
+import com.payflowx.settlement.dto.AuditEventMessage;
 import com.payflowx.settlement.entity.Payout;
 import com.payflowx.settlement.entity.Settlement;
 import com.payflowx.settlement.enums.SettlementWebhookEventType;
@@ -31,12 +33,31 @@ public class SettlementEventPublisherServiceImpl implements SettlementEventPubli
                 props.setContentEncoding("UTF-8");
                 props.setMessageId(settlement.getId().toString());
                 props.setHeader("X-PAYFLOWX-EVENT-ID", settlement.getId().toString());
-                props.setHeader("X-PAYFLOWX-CORRELATION-ID", MDC.get("correlationId"));
+                String correlationId = MDC.get("correlationId");
+                if (correlationId == null || correlationId.isBlank()) {
+                    correlationId = "CORR-" + settlement.getId();
+                }
+                props.setHeader("X-PAYFLOWX-CORRELATION-ID", correlationId);
                 props.setHeader("X-PAYFLOWX-MERCHANT-ID", settlement.getMerchantId().toString());
                 props.setHeader("X-PAYFLOWX-EVENT-TYPE", eventType.name());
                 props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", "settlement-service");
                 return message;
             });
+            String correlationId = MDC.get("correlationId");
+            if (correlationId == null || correlationId.isBlank()) {
+                correlationId = "CORR-" + settlement.getId();
+            }
+            try {
+                publishAuditEvent(
+                        settlement.getId().toString(),
+                        correlationId,
+                        settlement.getId().toString(),
+                        eventType.name(),
+                        payload
+                );
+            } catch (Exception ex) {
+                log.error("Audit publish failed", ex);
+            }
             log.info("Settlement event published settlementId={} eventType={}", settlement.getId(), eventType);
         } catch (JsonProcessingException ex) {
             log.error("Settlement event serialization failed settlementId={}", settlement.getId(), ex);
@@ -59,6 +80,17 @@ public class SettlementEventPublisherServiceImpl implements SettlementEventPubli
                 props.setHeader("X-PAYFLOWX-SOURCE-SERVICE", "settlement-service");
                 return message;
             });
+            try {
+                publishAuditEvent(
+                        payout.getId().toString(),
+                        payout.getPayoutReference(),
+                        payout.getId().toString(),
+                        eventType.name(),
+                        payload
+                );
+            } catch (Exception ex) {
+                log.error("Audit publish failed", ex);
+            }
             log.info("Payout event published payoutId={} eventType={}", payout.getId(), eventType);
         } catch (JsonProcessingException ex) {
             log.error("Payout event serialization failed payoutId={}", payout.getId(), ex);
@@ -75,5 +107,28 @@ public class SettlementEventPublisherServiceImpl implements SettlementEventPubli
             case PAYOUT_FAILED -> SettlementRabbitMqConstants.PAYOUT_FAILED_ROUTING_KEY;
             case PAYOUT_REVERSED -> SettlementRabbitMqConstants.PAYOUT_REVERSED_ROUTING_KEY;
         };
+    }
+
+    private void publishAuditEvent(String eventId, String correlationId, String aggregateId,
+                                   String eventType, Object payload) {
+        AuditEventMessage auditEvent = new AuditEventMessage(
+                eventId,
+                correlationId,
+                aggregateId,
+                "settlement-service",
+                eventType,
+                payload
+        );
+        try {
+            String auditPayload =
+                    objectMapper.writeValueAsString(auditEvent);
+            rabbitTemplate.convertAndSend(
+                    AuditRabbitMqConstants.AUDIT_EXCHANGE,
+                    AuditRabbitMqConstants.SETTLEMENT_AUDIT_ROUTING_KEY,
+                    auditPayload
+            );
+        } catch (Exception ex) {
+            log.error("Failed to publish settlement audit event", ex);
+        }
     }
 }
