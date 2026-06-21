@@ -44,6 +44,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Set Lowercase Owner
+        id: owner
+        run: |
+          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Grant Maven Permission
         run: chmod +x mvnw
         working-directory: services/${{ matrix.service }}
@@ -62,11 +67,11 @@ jobs:
       - name: Build Docker Image
         run: |
           docker build \
-          -t ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}:latest \
-          .
+            -t ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service }}:latest \
+            .
         working-directory: services/${{ matrix.service }}
 
       - name: Push Docker Image
         run: |
           docker push \
-          ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}:latest
+            ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service }}:latest
