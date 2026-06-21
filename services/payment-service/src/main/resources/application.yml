@@ -5,22 +5,6 @@ spring:
   application:
     name: payment-service
 
-  profiles:
-    active: local
-
-  cloud:
-    openfeign:
-      client:
-        config:
-          default:
-            connectTimeout: 3000
-            readTimeout: 5000
-            loggerLevel: basic
-
-      httpclient:
-        hc5:
-          enabled: true
-
   jackson:
     time-zone: UTC
 
@@ -40,6 +24,19 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
       connection-timeout: 20000
+
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 3000
+            readTimeout: 5000
+            loggerLevel: basic
+
+      httpclient:
+        hc5:
+          enabled: true
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
@@ -66,17 +63,25 @@ spring:
         size: 5
 
   jpa:
+    open-in-view: false
+
     hibernate:
       ddl-auto: update
 
     properties:
       hibernate:
+        format_sql: true
+
         jdbc:
+          batch_size: 25
           time_zone: UTC
+
+    show-sql: false
 
 resilience4j:
   circuitbreaker:
     instances:
+
       orderService:
         registerHealthIndicator: true
         slidingWindowType: COUNT_BASED
@@ -99,6 +104,7 @@ resilience4j:
 
   retry:
     instances:
+
       orderService:
         maxAttempts: 3
         waitDuration: 1s
@@ -114,7 +120,6 @@ eureka:
 
   instance:
     prefer-ip-address: true
-    hostname: localhost
 
 management:
   endpoints:

@@ -1,6 +1,14 @@
-version: '3.9'
-
 services:
+
+  discovery-server:
+    image: payflowx/discovery-server:1.0
+    container_name: payflowx-discovery-server
+    ports:
+      - "8761:8761"
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: payflowx-rabbitmq
@@ -8,42 +16,34 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - payflowx-network
 
   redis:
     image: redis:7
     container_name: payflowx-redis
     ports:
       - "6379:6379"
-    restart: unless-stopped
-
-  prometheus:
-    image: prom/prometheus
-    container_name: payflowx-prometheus
-    ports:
-      - "9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
-    depends_on:
-      - alertmanager
+      - redis-data:/data
     restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana
-    container_name: payflowx-grafana
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    volumes:
-      - ./grafana-data:/var/lib/grafana
-    restart: unless-stopped
-    depends_on:
-      - prometheus
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks:
+      - payflowx-network
 
   zipkin:
     image: openzipkin/zipkin
@@ -51,6 +51,8 @@ services:
     ports:
       - "9411:9411"
     restart: unless-stopped
+    networks:
+      - payflowx-network
 
   alertmanager:
     image: prom/alertmanager
@@ -62,3 +64,300 @@ services:
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
     restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  prometheus:
+    image: prom/prometheus
+    container_name: payflowx-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
+    depends_on:
+      - alertmanager
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  grafana:
+    image: grafana/grafana
+    container_name: payflowx-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - payflowx-network
+
+  api-gateway:
+    image: payflowx/api-gateway:1.0
+    container_name: payflowx-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      REDIS_HOST: payflowx-redis
+      REDIS_PORT: 6379
+      EUREKA_URL: http://payflowx-discovery-server:8761/eureka/
+      JWT_ALGORITHM: RS256
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_PUBLIC_KEY: classpath:keys/public.pem
+    depends_on:
+      redis:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      audit-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      merchant-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      settlement-service:
+        condition: service_started
+      notification-service:
+          condition: service_started
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  auth-service:
+    image: payflowx/auth-service:1.0
+    container_name: payflowx-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://host.docker.internal:5432/payflowx_auth
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: payflowx-redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: payflowx-rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      EUREKA_URL: http://payflowx-discovery-server:8761/eureka/
+      JWT_ALGORITHM: RS256
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_PRIVATE_KEY: classpath:keys/private.pem
+      JWT_PUBLIC_KEY: classpath:keys/public.pem
+      JWT_EXPIRATION: 3600000
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  audit-service:
+    image: payflowx/audit-service:1.0
+    container_name: payflowx-audit-service
+    ports:
+      - "8088:8088"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://host.docker.internal:5432/payflowx_audit
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: payflowx-rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      EUREKA_URL: http://payflowx-discovery-server:8761/eureka/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  user-service:
+    image: payflowx/user-service:1.0
+    container_name: payflowx-user-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://host.docker.internal:5432/payflowx_user_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: payflowx-rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      EUREKA_URL: http://payflowx-discovery-server:8761/eureka/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  merchant-service:
+    image: payflowx/merchant-service:1.0
+    container_name: payflowx-merchant-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://host.docker.internal:5432/payflowx_merchant_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: payflowx-rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      EUREKA_URL: http://payflowx-discovery-server:8761/eureka/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  order-service:
+    image: payflowx/order-service:1.0
+    container_name: payflowx-order-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://host.docker.internal:5432/payflowx_order_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: payflowx-rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      EUREKA_URL: http://payflowx-discovery-server:8761/eureka/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+      merchant-service:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  payment-service:
+    image: payflowx/payment-service:1.0
+    container_name: payflowx-payment-service
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://host.docker.internal:5432/payflowx_payment_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: payflowx-rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      EUREKA_URL: http://payflowx-discovery-server:8761/eureka/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+      merchant-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  settlement-service:
+    image: payflowx/settlement-service:1.0
+    container_name: payflowx-settlement-service
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://host.docker.internal:5432/payflowx_settlement_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: payflowx-rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      EUREKA_URL: http://payflowx-discovery-server:8761/eureka/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+      payment-service:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - payflowx-network
+
+  notification-service:
+    image: payflowx/notification-service:1.0
+    container_name: payflowx-notification-service
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://host.docker.internal:5432/payflowx_notification_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: payflowx-redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: payflowx-rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      EUREKA_URL: http://payflowx-discovery-server:8761/eureka/
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+      merchant-service:
+        condition: service_started
+    restart: unless-stopped
+
+    networks:
+      - payflowx-network
+
+networks:
+  payflowx-network:
+    name: payflowx-network
+
+volumes:
+  redis-data:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-storage:

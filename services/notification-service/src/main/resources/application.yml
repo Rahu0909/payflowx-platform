@@ -5,17 +5,31 @@ spring:
   application:
     name: notification-service
 
-  profiles:
-    active: local
-
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
   jpa:
+    open-in-view: false
+
     hibernate:
       ddl-auto: update
+
+    properties:
+      hibernate:
+        format_sql: true
 
 eureka:
   client:
@@ -24,29 +38,24 @@ eureka:
 
   instance:
     prefer-ip-address: true
-    hostname: localhost
 
 resilience4j:
   circuitbreaker:
     instances:
+
       merchantService:
         registerHealthIndicator: true
-        slidingWindowType: COUNT_BASED
         slidingWindowSize: 10
-        minimumNumberOfCalls: 5
         failureRateThreshold: 50
-        waitDurationInOpenState: 30s
 
       webhookDispatcher:
         registerHealthIndicator: true
-        slidingWindowType: COUNT_BASED
         slidingWindowSize: 20
-        minimumNumberOfCalls: 5
         failureRateThreshold: 50
-        waitDurationInOpenState: 30s
 
   retry:
     instances:
+
       merchantService:
         maxAttempts: 3
         waitDuration: 2s
@@ -68,9 +77,11 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
   tracing:
     sampling:
       probability: 1.0
+
 logging:
   level:
     root: INFO

@@ -1,0 +1,27 @@
+spring:
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+
+  rabbitmq:
+    host: payflowx-rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+
+  jpa:
+    show-sql: false
+
+eureka:
+  instance:
+    prefer-ip-address: true
+
+management:
+  zipkin:
+    tracing:
+      endpoint: http://payflowx-zipkin:9411/api/v2/spans
+
+logging:
+  level:
+    root: INFO
+    com.payflowx.merchant: INFO

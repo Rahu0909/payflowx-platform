@@ -4,139 +4,14 @@ server:
 spring:
   application:
     name: api-gateway
+
   main:
     web-application-type: reactive
-
-  profiles:
-    active: local
 
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-
-  cloud:
-    discovery:
-      locator:
-        enabled: true
-        lower-case-service-id: true
-    gateway:
-      routes:
-        # ===============================
-        # Eureka Dashboard UI
-        # ===============================
-        - id: discovery-server
-          uri: http://localhost:8761
-          predicates:
-            - Path=/eureka/**
-          filters:
-            - SetPath=/
-        - id: eureka-sever-static
-          uri: http://localhost:8761
-          predicates:
-            - Path=/eureka/**
-        # ===============================
-        # Auth Service Routes
-        # ===============================
-        - id: auth-service
-          uri: lb://auth-service
-          predicates:
-            - Path=/auth/**
-        # ===============================
-        # User Service Routes
-        # ===============================
-        - id: user-service
-          uri: lb://user-service
-          predicates:
-            - Path=/users/**
-        - id: user-service-admin
-          uri: lb://user-service
-          predicates:
-            - Path=/admin/users/**
-        # ===============================
-        # Merchant Service Routes
-        # ===============================
-        - id: merchant-service
-          uri: lb://merchant-service
-          predicates:
-            - Path=/merchants/**
-        - id: merchant-service-admin
-          uri: lb://merchant-service
-          predicates:
-            - Path=/admin/merchants/**
-        - id: merchant-service-internal
-          uri: lb://merchant-service
-          predicates:
-            - Path=/internal/merchants/**
-        # ===============================
-        # Order Service Routes
-        # ===============================
-        - id: order-service
-          uri: lb://order-service
-          predicates:
-            - Path=/orders/**
-        - id: order-service-internal
-          uri: lb://order-service
-          predicates:
-            - Path=/internal/orders/**
-        # ===============================
-        # Payment Service Routes
-        # ===============================
-        - id: payment-service
-          uri: lb://payment-service
-          predicates:
-            - Path=/payments/**
-        - id: payment-service-admin
-          uri: lb://payment-service
-          predicates:
-            - Path=/admin/payments/**
-        - id: payment-service-internal
-          uri: lb://payment-service
-          predicates:
-            - Path=/internal/payments/**
-        # ===============================
-        # Settlement Service Routes
-        # ===============================
-        - id: settlement-service
-          uri: lb://settlement-service
-          predicates:
-            - Path=/settlements/**
-
-        - id: settlement-service-admin
-          uri: lb://settlement-service
-          predicates:
-            - Path=/admin/settlements/**
-        # ===============================
-        # Notification Service Routes
-        # ===============================
-        - id: notification-service
-          uri: lb://notification-service
-          predicates:
-            - Path=/notifications/**
-
-        - id: notification-service-admin
-          uri: lb://notification-service
-          predicates:
-            - Path=/admin/notifications/**
-        - id: notification-service-public
-          uri: lb://notification-service
-          predicates:
-            - Path=/public/notifications/**
-        - id: notification-service-internal
-          uri: lb://notification-service
-          predicates:
-            - Path=/internal/notifications/**
-        # ===============================
-        # Audit Service Routes
-        # ===============================
-        - id: audit-service
-          uri: lb://audit-service
-          predicates:
-            - Path=/audits/**
-        - id: audit-service-admin
-          uri: lb://audit-service
-          predicates:
-            - Path=/admin/audits/**
 
 management:
   endpoints:
@@ -151,18 +26,18 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
   tracing:
     sampling:
       probability: 1.0
+
 eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
-    instance:
-      prefer-ip-address: true
+
   instance:
     prefer-ip-address: true
-    hostname: localhost
 
 app:
   jwt:

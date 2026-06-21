@@ -5,18 +5,30 @@ spring:
   application:
     name: order-service
 
-  profiles:
-    active: local
+  jackson:
+    time-zone: UTC
 
-  cloud:
-    openfeign:
-      circuitbreaker:
-        enabled: true
+    serialization:
+      write-dates-as-timestamps: false
+
+    default-property-inclusion: non_null
 
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 20000
+
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
@@ -25,8 +37,19 @@ spring:
     password: ${RABBITMQ_PASSWORD:guest}
 
   jpa:
+    open-in-view: false
+
     hibernate:
       ddl-auto: update
+
+    properties:
+      hibernate:
+        format_sql: true
+
+        jdbc:
+          time_zone: UTC
+
+    show-sql: false
 
 resilience4j:
   circuitbreaker:
@@ -66,7 +89,6 @@ eureka:
 
   instance:
     prefer-ip-address: true
-    hostname: localhost
 
 management:
   endpoints:

@@ -5,28 +5,10 @@ spring:
   application:
     name: settlement-service
 
-  profiles:
-    active: local
-
-  cloud:
-    openfeign:
-      client:
-        config:
-          default:
-            connectTimeout: 3000
-            readTimeout: 5000
-            loggerLevel: basic
-
-      httpclient:
-        hc5:
-          enabled: true
-
   jackson:
     time-zone: UTC
-
     serialization:
       write-dates-as-timestamps: false
-
     default-property-inclusion: non_null
 
   datasource:
@@ -47,18 +29,18 @@ spring:
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
 
-    listener:
-      simple:
-        acknowledge-mode: auto
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 3000
+            readTimeout: 5000
+            loggerLevel: basic
 
-        retry:
+      httpclient:
+        hc5:
           enabled: true
-          initial-interval: 1000
-          max-attempts: 3
-          multiplier: 2
-
-    template:
-      mandatory: true
 
   task:
     scheduling:
@@ -66,13 +48,18 @@ spring:
         size: 5
 
   jpa:
+    open-in-view: false
+
     hibernate:
       ddl-auto: update
 
     properties:
       hibernate:
+        format_sql: true
         jdbc:
           time_zone: UTC
+
+    show-sql: false
 
 resilience4j:
   circuitbreaker:
@@ -84,8 +71,6 @@ resilience4j:
         minimumNumberOfCalls: 5
         failureRateThreshold: 50
         waitDurationInOpenState: 30s
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
 
   retry:
     instances:
@@ -105,7 +90,6 @@ eureka:
 
   instance:
     prefer-ip-address: true
-    hostname: localhost
 
 management:
   endpoints:
@@ -120,9 +104,11 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
   tracing:
     sampling:
       probability: 1.0
+
 logging:
   level:
     root: INFO

@@ -1,0 +1,128 @@
+spring:
+
+  cloud:
+
+    discovery:
+      locator:
+        enabled: true
+        lower-case-service-id: true
+
+    gateway:
+      routes:
+
+        - id: discovery-server
+          uri: http://payflowx-discovery-server:8761
+          predicates:
+            - Path=/eureka/**
+          filters:
+            - SetPath=/
+
+        - id: eureka-server-static
+          uri: http://payflowx-discovery-server:8761
+          predicates:
+            - Path=/eureka/**
+
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/users/**
+
+        - id: user-service-admin
+          uri: lb://user-service
+          predicates:
+            - Path=/admin/users/**
+
+        - id: merchant-service
+          uri: lb://merchant-service
+          predicates:
+            - Path=/merchants/**
+
+        - id: merchant-service-admin
+          uri: lb://merchant-service
+          predicates:
+            - Path=/admin/merchants/**
+
+        - id: merchant-service-internal
+          uri: lb://merchant-service
+          predicates:
+            - Path=/internal/merchants/**
+
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/orders/**
+
+        - id: order-service-internal
+          uri: lb://order-service
+          predicates:
+            - Path=/internal/orders/**
+
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/payments/**
+
+        - id: payment-service-admin
+          uri: lb://payment-service
+          predicates:
+            - Path=/admin/payments/**
+
+        - id: payment-service-internal
+          uri: lb://payment-service
+          predicates:
+            - Path=/internal/payments/**
+
+        - id: settlement-service
+          uri: lb://settlement-service
+          predicates:
+            - Path=/settlements/**
+
+        - id: settlement-service-admin
+          uri: lb://settlement-service
+          predicates:
+            - Path=/admin/settlements/**
+
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/notifications/**
+
+        - id: notification-service-admin
+          uri: lb://notification-service
+          predicates:
+            - Path=/admin/notifications/**
+
+        - id: notification-service-public
+          uri: lb://notification-service
+          predicates:
+            - Path=/public/notifications/**
+
+        - id: notification-service-internal
+          uri: lb://notification-service
+          predicates:
+            - Path=/internal/notifications/**
+
+        - id: audit-service
+          uri: lb://audit-service
+          predicates:
+            - Path=/audits/**
+
+        - id: audit-service-admin
+          uri: lb://audit-service
+          predicates:
+            - Path=/admin/audits/**
+
+  data:
+    redis:
+      host: payflowx-redis
+      port: 6379
+
+management:
+  zipkin:
+    tracing:
+      endpoint: http://payflowx-zipkin:9411/api/v2/spans
