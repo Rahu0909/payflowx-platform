@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: merchant-service
+  namespace: payflowx
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: merchant-service
+
+  template:
+    metadata:
+      labels:
+        app: merchant-service
+
+    spec:
+      containers:
+        - name: merchant-service
+          image: ghcr.io/rahu0909/merchant-service:latest
+
+          ports:
+            - containerPort: 8083
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          env:
+            - name: EUREKA_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: payflowx-config
+                  key: EUREKA_SERVER_URL

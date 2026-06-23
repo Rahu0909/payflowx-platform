@@ -4,7 +4,8 @@ server:
 spring:
   application:
     name: user-service
-
+  profiles:
+    active: local
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -51,7 +52,13 @@ eureka:
 
   instance:
     prefer-ip-address: true
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
 
+  api-docs:
+    path: /v3/api-docs
 logging:
   level:
     root: INFO

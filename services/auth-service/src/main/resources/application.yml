@@ -5,6 +5,9 @@ spring:
   application:
     name: auth-service
 
+  profiles:
+    active: local
+
   jackson:
     time-zone: UTC
     serialization:
@@ -103,6 +106,13 @@ logging:
   level:
     root: INFO
     com.payflowx.auth: DEBUG
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html   # Custom URL path
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
 
 app:
   jwt:

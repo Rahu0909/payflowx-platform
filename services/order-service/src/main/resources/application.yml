@@ -4,7 +4,8 @@ server:
 spring:
   application:
     name: order-service
-
+  profiles:
+    active: local
   jackson:
     time-zone: UTC
 
@@ -107,7 +108,13 @@ management:
   tracing:
     sampling:
       probability: 1.0
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
 
+  api-docs:
+    path: /v3/api-docs
 logging:
   level:
     root: INFO

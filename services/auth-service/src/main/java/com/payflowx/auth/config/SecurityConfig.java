@@ -31,7 +31,9 @@ public class SecurityConfig {
                                 "/auth/refresh",
                                 "/auth/password/forgot",
                                 "/auth/password/reset",
-                                "/actuator/**").permitAll()
+                                "/actuator/**", "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

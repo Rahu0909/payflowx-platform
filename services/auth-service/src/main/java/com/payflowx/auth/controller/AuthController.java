@@ -3,6 +3,8 @@ package com.payflowx.auth.controller;
 import com.payflowx.auth.constant.AppConstants;
 import com.payflowx.auth.dto.*;
 import com.payflowx.auth.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping(AppConstants.API_BASE)
 @RequiredArgsConstructor
+@Tag(name = "Authentication", description = "Authentication APIs")
 public class AuthController {
 
     private final AuthService authService;
@@ -20,6 +23,7 @@ public class AuthController {
         return ResponseEntity.ok(authService.register(userDto));
     }
 
+    @Operation(summary = "Login User", description = "Authenticate user and generate JWT token")
     @PostMapping(AppConstants.LOGIN)
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
